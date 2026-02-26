@@ -50,7 +50,7 @@ cmd_start() {
     tmux new-session -d -s "$SESSION" -n "$name" -c "$dir"
 
     # Set up layout for first window (after-new-window hook doesn't fire for initial window)
-    tmux split-window -t "$SESSION:$name" -h -l 24 "~/.local/bin/tmux-sidebar"
+    tmux split-window -t "$SESSION:$name" -h -p 25 "~/.local/bin/tmux-sidebar"
     tmux split-window -v -l 5
     tmux select-pane -t "$SESSION:$name.1"
 
