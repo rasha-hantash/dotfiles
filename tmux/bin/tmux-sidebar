@@ -44,9 +44,21 @@ render() {
     done
 
     printf '───────────────────────\033[K\n'
-    printf '\033[90m ↑/↓  switch\033[0m\033[K\n'
-    printf '\033[90m ⌘P  focus\033[0m\033[K\n'
-    printf '\033[J'
+    printf '\033[90m ↑/↓  switch session\033[0m\033[K\n'
+
+    # Clear middle area (between top section and bottom legend) line by line
+    local lines=$(tput lines)
+    local cur_row=$((2 + window_count + 2))  # header + divider + windows + divider + switch hint
+    while (( cur_row < lines - 3 )); do
+        printf '\033[K\n'
+        ((cur_row++))
+    done
+
+    # Pin focus legend to bottom of pane
+    tput cup $((lines - 3)) 0
+    printf '\033[90m ⌘ + p  focus sessions\033[0m\033[K\n'
+    printf '\033[90m ⌘ + m  focus terminal\033[0m\033[K\n'
+    printf '\033[90m ⌘ + j  focus claude\033[0m\033[K'
 }
 
 while true; do
