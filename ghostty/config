@@ -1,0 +1,5 @@
+# CCS pane focus shortcuts
+# Sends tmux prefix (Ctrl+A = \x01) followed by the pane key
+keybind = cmd+j=text:\x01f
+keybind = cmd+p=text:\x01s
+keybind = cmd+m=text:\x01m
