@@ -4,7 +4,7 @@
 #   cc-start                        → starts with a session named "session-1" in CWD
 #   cc-start pancake ~/workspace/personal/pancake  → starts with a named first session
 
-SESSION="cc"
+SESSION="ccs"
 NAME=${1:-"session-1"}
 DIR=${2:-$(pwd)}
 

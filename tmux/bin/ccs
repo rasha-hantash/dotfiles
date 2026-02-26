@@ -2,7 +2,7 @@
 # ccs — Claude Code session manager
 # Manages multiple Claude Code sessions inside tmux
 
-SESSION="cc"
+SESSION="ccs"
 
 usage() {
     cat <<'EOF'
