@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Add a new Claude Code session tab
+# Usage: cc-new <name> [directory]
+
+NAME=${1:?"Usage: cc-new <name> [directory]"}
+DIR=${2:-$(pwd)}
+SESSION=$(tmux display-message -p '#S')
+
+# Create new window — the after-new-window hook handles sidebar + mini-terminal
+tmux new-window -t "$SESSION" -n "$NAME" -c "$DIR"
+
+# Start claude in the main pane (pane 1)
+tmux send-keys -t "$SESSION:$NAME.1" "claude" Enter
