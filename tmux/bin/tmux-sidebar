@@ -53,8 +53,8 @@ while true; do
     refresh_windows
     render
 
-    # Read a single character with 1s timeout (auto-refresh when idle)
-    if read -rsk1 -t 1 key 2>/dev/null; then
+    # Read a single character with 0.1s timeout (auto-refresh when idle)
+    if read -rsk1 -t 0.1 key 2>/dev/null; then
         if [[ $key == $'\033' ]]; then
             # Escape sequence — read the rest immediately
             read -rsk2 -t 0 rest 2>/dev/null
