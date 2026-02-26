@@ -7,7 +7,7 @@ SESSION="ccs"
 setup_layout() {
     local win="$SESSION:$1"
     tmux split-window -t "$win" -h -p 25 "~/.local/bin/tmux-sidebar"
-    tmux split-window -t "$win.2" -v -l 5
+    tmux split-window -t "$win.2" -v -l 8
     tmux select-pane -t "$win.1"
     tmux send-keys -t "$win.1" "claude" Enter
 }
@@ -59,7 +59,7 @@ cmd_start() {
     # is built at real dimensions — no detach/attach resize mismatch.
     tmux new-session -s "$SESSION" -n "$name" -c "$dir" \; \
         split-window -h -p 25 "~/.local/bin/tmux-sidebar" \; \
-        split-window -t .2 -v -l 5 \; \
+        split-window -t .2 -v -l 8 \; \
         select-pane -t .1 \; \
         send-keys -t .1 "claude" Enter
 }
