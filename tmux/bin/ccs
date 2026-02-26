@@ -9,18 +9,18 @@ usage() {
 ccs — Claude Code session manager
 
 Usage:
-  ccsstart [name] [dir]    Start the session manager (creates first session)
-  ccsnew <name> [dir]      Add a new Claude Code session tab
-  ccslist                  List all active session tabs
-  ccskill [name]           Kill a session tab (or all if no name given)
-  ccshelp                  Show this help
+  ccs start [name] [dir]    Start the session manager (creates first session)
+  ccs new <name> [dir]      Add a new Claude Code session tab
+  ccs list                  List all active session tabs
+  ccs kill [name]           Kill a session tab (or all if no name given)
+  ccs help                  Show this help
 
 Examples:
-  ccsstart pancake ~/workspace/personal/pancake
-  ccsnew rag ~/workspace/personal/technical-rag
-  ccslist
-  ccskill rag
-  ccskill
+  ccs start pancake ~/workspace/personal/pancake
+  ccs new rag ~/workspace/personal/technical-rag
+  ccs list
+  ccs kill rag
+  ccs kill
 EOF
 }
 
@@ -28,13 +28,13 @@ cmd_start() {
     local name=${1:-"session-1"}
     local dir=${2:-$(pwd)}
 
-    # If already inside the cc tmux session, suggest ccs new
+    # If already inside the ccs tmux session, suggest ccs new
     if [ -n "$TMUX" ]; then
         local current_session
         current_session=$(tmux display-message -p '#S')
         if [ "$current_session" = "$SESSION" ]; then
             echo "Already inside the ccs session. Did you mean:"
-            echo "  ccsnew $name $dir"
+            echo "  ccs new $name $dir"
             return 1
         fi
     fi
@@ -67,7 +67,7 @@ cmd_new() {
     # Must be inside tmux
     if [ -z "$TMUX" ]; then
         echo "Not inside a tmux session. Start one first:"
-        echo "  ccsstart $name $dir"
+        echo "  ccs start $name $dir"
         return 1
     fi
 
