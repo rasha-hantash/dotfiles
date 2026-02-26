@@ -4,6 +4,14 @@
 
 SESSION="ccs"
 
+setup_layout() {
+    local win="$SESSION:$1"
+    tmux split-window -t "$win" -h -l 24 "~/.local/bin/tmux-sidebar"
+    tmux split-window -t "$win.2" -v -l 5
+    tmux select-pane -t "$win.1"
+    tmux send-keys -t "$win.1" "claude" Enter
+}
+
 usage() {
     cat <<'EOF'
 ccs — Claude Code session manager
@@ -46,17 +54,11 @@ cmd_start() {
         return 0
     fi
 
-    # Create session with first window
-    tmux new-session -d -s "$SESSION" -n "$name" -c "$dir"
+    # Create session with first window at actual terminal size
+    # Subtract 1 from lines to account for tmux status bar
+    tmux new-session -d -s "$SESSION" -n "$name" -c "$dir" -x "$(tput cols)" -y "$(($(tput lines) - 1))"
 
-    # Set up layout for first window (after-new-window hook doesn't fire for initial window)
-    tmux split-window -t "$SESSION:$name" -h -p 25 "~/.local/bin/tmux-sidebar"
-    tmux split-window -v -l 5
-    tmux select-pane -t "$SESSION:$name.1"
-
-    # Start claude in main pane
-    tmux send-keys -t "$SESSION:$name.1" "claude" Enter
-
+    setup_layout "$name"
     tmux attach -t "$SESSION"
 }
 
@@ -71,11 +73,9 @@ cmd_new() {
         return 1
     fi
 
-    # Create new window — the after-new-window hook handles sidebar + mini-terminal
+    # Create new window and set up layout
     tmux new-window -t "$SESSION" -n "$name" -c "$dir"
-
-    # Start claude in the main pane (pane 1)
-    tmux send-keys -t "$SESSION:$name.1" "claude" Enter
+    setup_layout "$name"
 }
 
 cmd_list() {
