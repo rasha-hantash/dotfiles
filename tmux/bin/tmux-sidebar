@@ -62,9 +62,8 @@ while true; do
                     (( selected < window_count - 1 )) && (( selected++ ))
                     ;;
             esac
-        elif [[ $key == '' ]]; then
+        elif [[ $key == $'\n' || $key == $'\r' ]]; then
             # Enter — switch to selected window, focus main pane
-            local target
             target=$(get_window_index_at $selected)
             if [[ -n $target ]]; then
                 tmux select-window -t "$SESSION:$target"
