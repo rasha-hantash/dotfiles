@@ -1,0 +1,17 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-keybindings.json",
+  "bindings": [
+    {
+      "context": "Autocomplete",
+      "bindings": {
+        "tab": "autocomplete:accept"
+      }
+    },
+    {
+      "context": "Chat",
+      "bindings": {
+        "tab": null
+      }
+    }
+  ]
+}
