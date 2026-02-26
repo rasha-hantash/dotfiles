@@ -75,6 +75,13 @@ cmd_new() {
         return 1
     fi
 
+    # Session must already exist (created by ccs start)
+    if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+        echo "No active ccs session. Start one first:"
+        echo "  ccs start $name $dir"
+        return 1
+    fi
+
     # Create new window and set up layout
     tmux new-window -t "$SESSION" -n "$name" -c "$dir"
     setup_layout "$name"
@@ -86,8 +93,8 @@ cmd_list() {
         return 1
     fi
 
-    tmux list-windows -t "$SESSION" -F '  #{window_index}  #{window_name}  #{window_active}'  | \
-    while read -r idx name active; do
+    tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_name}|#{window_active}' | \
+    while IFS='|' read -r idx name active; do
         if [ "$active" = "1" ]; then
             printf '  \033[1;33m▶ %s  %s\033[0m\n' "$idx" "$name"
         else
@@ -105,6 +112,12 @@ cmd_kill() {
     fi
 
     if [ -z "$name" ]; then
+        printf "Kill all ccs sessions? (y/n) "
+        read -r confirm
+        if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+            echo "Cancelled."
+            return 0
+        fi
         tmux kill-session -t "$SESSION"
         echo "Killed all ccs sessions."
     else
