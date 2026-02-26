@@ -27,7 +27,7 @@ while true; do
     done
 
     printf '───────────────────────\033[K\n'
-    printf '\033[90m ^↑/↓  switch\033[0m\033[K\n'
+    printf '\033[90m C-a ↑/↓ switch\033[0m\033[K\n'
 
     # Clear any remaining lines from previous renders (e.g., after closing a session)
     printf '\033[J'
