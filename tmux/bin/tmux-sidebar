@@ -45,10 +45,11 @@ render() {
 
     printf '───────────────────────\033[K\n'
     printf '\033[90m ↑/↓  switch session\033[0m\033[K\n'
+    printf '\033[90m  q   quit sidebar\033[0m\033[K\n'
 
     # Clear middle area (between top section and bottom legend) line by line
     local lines=$(tput lines)
-    local cur_row=$((2 + window_count + 2))  # header + divider + windows + divider + switch hint
+    local cur_row=$((2 + window_count + 3))  # header + divider + windows + divider + switch hint + quit hint
     while (( cur_row < lines - 3 )); do
         printf '\033[K\n'
         ((cur_row++))
@@ -71,21 +72,23 @@ while true; do
             # Escape sequence — read the rest immediately
             read -rsk2 -t 0 rest 2>/dev/null
             case "$rest" in
-                '[A') # Up
+                '[A') # Up — switch window, keep focus in sidebar for multi-step navigation
                     if (( selected > 0 )); then
                         (( selected-- ))
                         tmux select-window -t "$SESSION:${win_indices[$((selected+1))]}" \; select-pane -t :.2
                     fi
                     ;;
-                '[B') # Down
+                '[B') # Down — switch window, keep focus in sidebar for multi-step navigation
                     if (( selected < window_count - 1 )); then
                         (( selected++ ))
                         tmux select-window -t "$SESSION:${win_indices[$((selected+1))]}" \; select-pane -t :.2
                     fi
                     ;;
             esac
+        elif [[ $key == 'q' ]]; then
+            break
         elif [[ $key == $'\n' || $key == $'\r' ]]; then
-            # Enter — switch to selected window, focus Claude pane
+            # Enter — commit selection and jump to Claude pane
             tmux select-window -t "$SESSION:${win_indices[$((selected+1))]}" \; select-pane -t :.1
         fi
     fi
