@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# cc — Claude Code session manager
+# ccs — Claude Code session manager
 # Manages multiple Claude Code sessions inside tmux
 
 SESSION="cc"
 
 usage() {
     cat <<'EOF'
-cc — Claude Code session manager
+ccs — Claude Code session manager
 
 Usage:
-  cc start [name] [dir]    Start the session manager (creates first session)
-  cc new <name> [dir]      Add a new Claude Code session tab
-  cc list                  List all active session tabs
-  cc kill [name]           Kill a session tab (or all if no name given)
-  cc help                  Show this help
+  ccsstart [name] [dir]    Start the session manager (creates first session)
+  ccsnew <name> [dir]      Add a new Claude Code session tab
+  ccslist                  List all active session tabs
+  ccskill [name]           Kill a session tab (or all if no name given)
+  ccshelp                  Show this help
 
 Examples:
-  cc start pancake ~/workspace/personal/pancake
-  cc new rag ~/workspace/personal/technical-rag
-  cc list
-  cc kill rag
-  cc kill
+  ccsstart pancake ~/workspace/personal/pancake
+  ccsnew rag ~/workspace/personal/technical-rag
+  ccslist
+  ccskill rag
+  ccskill
 EOF
 }
 
@@ -28,13 +28,13 @@ cmd_start() {
     local name=${1:-"session-1"}
     local dir=${2:-$(pwd)}
 
-    # If already inside the cc tmux session, suggest cc new
+    # If already inside the cc tmux session, suggest ccs new
     if [ -n "$TMUX" ]; then
         local current_session
         current_session=$(tmux display-message -p '#S')
         if [ "$current_session" = "$SESSION" ]; then
-            echo "Already inside the cc session. Did you mean:"
-            echo "  cc new $name $dir"
+            echo "Already inside the ccs session. Did you mean:"
+            echo "  ccsnew $name $dir"
             return 1
         fi
     fi
@@ -61,13 +61,13 @@ cmd_start() {
 }
 
 cmd_new() {
-    local name=${1:?"Usage: cc new <name> [directory]"}
+    local name=${1:?"Usage: ccs new <name> [directory]"}
     local dir=${2:-$(pwd)}
 
     # Must be inside tmux
     if [ -z "$TMUX" ]; then
         echo "Not inside a tmux session. Start one first:"
-        echo "  cc start $name $dir"
+        echo "  ccsstart $name $dir"
         return 1
     fi
 
@@ -80,7 +80,7 @@ cmd_new() {
 
 cmd_list() {
     if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "No active cc session."
+        echo "No active ccs session."
         return 1
     fi
 
@@ -98,13 +98,13 @@ cmd_kill() {
     local name=$1
 
     if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "No active cc session."
+        echo "No active ccs session."
         return 1
     fi
 
     if [ -z "$name" ]; then
         tmux kill-session -t "$SESSION"
-        echo "Killed all cc sessions."
+        echo "Killed all ccs sessions."
     else
         tmux kill-window -t "$SESSION:$name"
         echo "Killed session tab: $name"
@@ -120,7 +120,7 @@ case "${1:-help}" in
     help|-h|--help) usage ;;
     *)
         echo "Unknown command: $1"
-        echo "Run 'cc help' for usage."
+        echo "Run 'ccs help' for usage."
         exit 1
         ;;
 esac
