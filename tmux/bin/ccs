@@ -29,7 +29,7 @@ usage() {
     printf "%sUsage:%s\n" "$C_BLUE" "$C_R"
     printf "  %scss start%s [name] [dir]    Start or add a session tab\n" "$C_PEACH" "$C_R"
     printf "  %scss list%s                  List active sessions\n" "$C_PEACH" "$C_R"
-    printf "  %scss kill%s  <name>          Kill a single session tab\n" "$C_PEACH" "$C_R"
+    printf "  %scss kill%s  [name]          Kill a session tab (interactive picker)\n" "$C_PEACH" "$C_R"
     printf "  %scss all-kill%s              Kill all sessions\n" "$C_PEACH" "$C_R"
     printf "  %scss help%s                  Show this help\n" "$C_PEACH" "$C_R"
     printf "\n"
@@ -105,15 +105,113 @@ cmd_list() {
 }
 
 cmd_kill() {
-    local name=${1:?"Usage: ccs kill <name>"}
-
     if ! tmux has-session -t "$SESSION" 2>/dev/null; then
         printf "%sNo active ccs session.%s\n" "$C_OVERLAY" "$C_R"
         return 1
     fi
 
-    tmux kill-window -t "$SESSION:$name"
-    printf "Killed: %s%s%s\n" "$C_PEACH" "$name" "$C_R"
+    # No argument — show picker with all windows
+    if [[ -z ${1:-} ]]; then
+        cmd_kill_picker
+        return
+    fi
+
+    local name="$1"
+
+    # Collect windows matching this name
+    local -a match_indices=() match_names=() match_paths=()
+    while IFS='|' read -r idx wname ppath; do
+        if [[ $wname == "$name" ]]; then
+            match_indices+=("$idx")
+            match_names+=("$wname")
+            match_paths+=("$ppath")
+        fi
+    done < <(tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_name}|#{pane_current_path}')
+
+    if [[ ${#match_indices[@]} -eq 0 ]]; then
+        printf "No window named '%s%s%s'.\n" "$C_PEACH" "$name" "$C_R"
+        return 1
+    elif [[ ${#match_indices[@]} -eq 1 ]]; then
+        tmux kill-window -t "$SESSION:${match_indices[0]}"
+        printf "Killed: %s%s%s\n" "$C_PEACH" "$name" "$C_R"
+    else
+        cmd_kill_picker "$name"
+    fi
+}
+
+cmd_kill_picker() {
+    local filter="${1:-}"
+    local -a pick_indices=() pick_names=() pick_paths=()
+
+    while IFS='|' read -r idx wname ppath; do
+        if [[ -z $filter || $wname == "$filter" ]]; then
+            pick_indices+=("$idx")
+            pick_names+=("$wname")
+            pick_paths+=("$ppath")
+        fi
+    done < <(tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_name}|#{pane_current_path}')
+
+    local count=${#pick_indices[@]}
+    if [[ $count -eq 0 ]]; then
+        printf "%sNo sessions to kill.%s\n" "$C_OVERLAY" "$C_R"
+        return 1
+    fi
+
+    if [[ -n $filter ]]; then
+        printf "\n  %sMultiple sessions for %s%s%s:%s\n" "$C_OVERLAY" "$C_PEACH" "$filter" "$C_OVERLAY" "$C_R"
+    else
+        printf "\n  %sSelect session to kill:%s\n" "$C_OVERLAY" "$C_R"
+    fi
+
+    local sel=0
+
+    # Hide cursor
+    tput civis
+    trap 'tput cnorm' RETURN
+
+    while true; do
+        # Render list
+        for (( i=0; i<count; i++ )); do
+            local branch_info
+            branch_info=$(get_branch_info "${pick_paths[$i]}")
+            local branch_display=""
+            [[ -n $branch_info ]] && branch_display="  ${C_SURFACE}${branch_info}${C_R}"
+
+            if [[ $i -eq $sel ]]; then
+                printf "  %s●%s %s%s%s%s%s\n" "$C_PEACH" "$C_R" "$C_PEACH" "$C_BOLD" "${pick_names[$i]}" "$C_R" "$branch_display"
+            else
+                printf "  %s·%s %s%s%s%s\n" "$C_OVERLAY" "$C_R" "$C_OVERLAY" "${pick_names[$i]}" "$C_R" "$branch_display"
+            fi
+        done
+        printf "\n  %s↑↓%s%s select · enter kill · q cancel%s\n" "$C_BLUE" "$C_R" "$C_OVERLAY" "$C_R"
+
+        # Read key
+        local key=""
+        IFS= read -rsn1 key
+        if [[ $key == $'\033' ]]; then
+            local rest=""
+            IFS= read -rsn2 -t 0.1 rest
+            case "$rest" in
+                '[A') (( sel > 0 )) && (( sel-- )) ;;
+                '[B') (( sel < count - 1 )) && (( sel++ )) ;;
+            esac
+        elif [[ $key == '' || $key == $'\n' ]]; then
+            tmux kill-window -t "$SESSION:${pick_indices[$sel]}"
+            printf "\r\033[K  Killed: %s%s%s\n" "$C_PEACH" "${pick_names[$sel]}" "$C_R"
+            return 0
+        elif [[ $key == 'q' ]]; then
+            printf "\r\033[K  %sCancelled.%s\n" "$C_OVERLAY" "$C_R"
+            return 0
+        fi
+
+        # Move cursor back up to redraw
+        local lines_to_clear=$(( count + 2 ))
+        printf "\033[${lines_to_clear}A"
+        for (( i=0; i<lines_to_clear; i++ )); do
+            printf "\033[K\n"
+        done
+        printf "\033[${lines_to_clear}A"
+    done
 }
 
 cmd_kill_all() {
