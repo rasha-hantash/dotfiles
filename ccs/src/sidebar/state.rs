@@ -1,11 +1,16 @@
 // ── State detection for Claude session windows ──
+//
+// Reads CCS event files written by Claude Code hooks to determine sidebar state.
+// Each Claude session has an event file at ~/.ccs/events/{session_id}.jsonl.
+// The sidebar matches events to tmux windows by comparing the event's `cwd`
+// to each window's `pane_path`.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::LazyLock;
 use std::fs;
+use std::io::{BufRead, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
 
-use regex::Regex;
+use serde::Deserialize;
 
 use crate::tmux;
 
@@ -13,11 +18,11 @@ use crate::tmux;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowState {
-    /// New session, no activity detected yet.
+    /// New session, no hook events fired yet.
     Fresh,
-    /// Claude is generating output (pane content changed).
+    /// Claude is generating output.
     Working,
-    /// Claude is waiting for user to answer a question (yes/no, pick option, allow/deny).
+    /// Claude is waiting for user to answer a question.
     Asking,
     /// Claude finished answering — waiting for next user message.
     Idle,
@@ -25,85 +30,101 @@ pub enum WindowState {
     Done,
 }
 
-// ── Question detection ──
-
-static QUESTION_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(concat!(
-        r"(?im)",
-        r"\(Y\)es.*\(N\)o",               // (Y)es/(N)o prompt
-        r"|\([yY]/[nN]\)|\[[yY]/[nN]\]",  // (y/n), (Y/n), [y/N], etc.
-        r"|\(yes/no\)",                     // (yes/no)
-        r"|❯",                              // selection marker (AskUserQuestion)
-        r"|Allow.*Deny",                    // permission buttons on same line
-    ))
-    .expect("question regex is valid")
-});
-
-/// Check only the last 2 lines for question patterns (prompts appear at the bottom).
-fn detect_question(capture: &str) -> bool {
-    let tail: String = capture.lines().rev().take(2).collect::<Vec<_>>().join("\n");
-    QUESTION_RE.is_match(&tail)
+#[derive(Deserialize)]
+struct EventEntry {
+    state: String,
+    cwd: String,
+    #[allow(dead_code)]
+    ts: u64,
 }
 
-/// Minimum changed lines to count as "significant" (Claude generating, not user typing).
-const SIGNIFICANT_LINES: usize = 2;
-/// How many consecutive significant-change ticks before we enter Working.
-const WORK_ENTER_TICKS: u32 = 2;
-/// How many consecutive quiet ticks before we leave Working.
-const WORK_EXIT_TICKS: u32 = 5;
+// ── Helpers ──
 
-struct WindowTracker {
-    prev_raw: String,
-    change_streak: u32,
-    stable_streak: u32,
-    ever_worked: bool,
-    was_working: bool,
-    /// True after Claude finishes a generation turn. Cleared on any content change
-    /// (user typing resets it so `(ready)` disappears until Claude responds again).
-    turn_complete: bool,
+fn events_dir() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_default();
+    PathBuf::from(home).join(".ccs").join("events")
 }
 
-// ── Cross-instance state sharing ──
+/// Read the last line of a file efficiently.
+/// Returns None if the file is empty or unreadable.
+fn read_last_line(path: &Path) -> Option<String> {
+    let file = fs::File::open(path).ok()?;
+    let len = file.metadata().ok()?.len();
+    if len == 0 {
+        return None;
+    }
 
-fn state_dir() -> PathBuf {
-    PathBuf::from("/tmp/ccs-state")
+    // Read last 1KB — event lines are ~80 bytes, so this is more than enough
+    let tail_start = len.saturating_sub(1024);
+    let mut reader = std::io::BufReader::new(file);
+    reader.seek(SeekFrom::Start(tail_start)).ok()?;
+
+    // If we seeked mid-line, skip the partial first line
+    if tail_start > 0 {
+        let mut discard = String::new();
+        let _ = reader.read_line(&mut discard);
+    }
+
+    let mut last = None;
+    let mut line = String::new();
+    loop {
+        line.clear();
+        match reader.read_line(&mut line) {
+            Ok(0) => break,
+            Ok(_) => {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
+                    last = Some(trimmed.to_string());
+                }
+            }
+            Err(_) => break,
+        }
+    }
+
+    last
 }
 
-fn mark_worked(window_index: u32) {
-    let dir = state_dir();
-    fs::create_dir_all(&dir).ok();
-    fs::write(dir.join(window_index.to_string()), "").ok();
+/// Load the latest event from each event file in the events directory.
+/// Returns a vec of (cwd, state, mtime) for matching against windows.
+fn load_latest_events(dir: &Path) -> Vec<(String, String, std::time::SystemTime)> {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut results = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+            continue;
+        }
+        let mtime = entry.metadata().ok().and_then(|m| m.modified().ok());
+        if let Some(line) = read_last_line(&path) {
+            if let Ok(event) = serde_json::from_str::<EventEntry>(&line) {
+                results.push((event.cwd, event.state, mtime.unwrap_or(std::time::UNIX_EPOCH)));
+            }
+        }
+    }
+
+    results
 }
 
-fn check_worked(window_index: u32) -> bool {
-    state_dir().join(window_index.to_string()).exists()
-}
-
-fn clear_worked(window_index: u32) {
-    fs::remove_file(state_dir().join(window_index.to_string())).ok();
-}
-
-/// Count how many trimmed lines differ between two captures.
-fn changed_line_count(a: &str, b: &str) -> usize {
-    let al: Vec<&str> = a.lines().map(str::trim).collect();
-    let bl: Vec<&str> = b.lines().map(str::trim).collect();
-    let max = al.len().max(bl.len());
-    (0..max)
-        .filter(|&i| al.get(i) != bl.get(i))
-        .count()
-}
-
-pub struct StateDetector {
-    trackers: HashMap<u32, WindowTracker>,
+fn state_from_str(s: &str) -> WindowState {
+    match s {
+        "working" => WindowState::Working,
+        "asking" => WindowState::Asking,
+        "idle" => WindowState::Idle,
+        _ => WindowState::Fresh,
+    }
 }
 
 // ── Public API ──
 
+pub struct StateDetector;
+
 impl StateDetector {
     pub fn new() -> Self {
-        Self {
-            trackers: HashMap::new(),
-        }
+        Self
     }
 
     /// Detect the state of each window. Returns a map from window_index to state.
@@ -117,6 +138,9 @@ impl StateDetector {
             .map(|p| (p.window_index, p.command))
             .collect();
 
+        // Load all latest events once per detect cycle
+        let events = load_latest_events(&events_dir());
+
         for win in windows {
             let cmd = pane_cmds
                 .get(&win.index)
@@ -129,86 +153,108 @@ impl StateDetector {
                 continue;
             }
 
-            // Claude is running — detect activity via content change
-            let raw_capture = tmux::capture_pane(win.index, 5).unwrap_or_default();
+            // Find the most recently modified event file whose cwd matches this window
+            let matched = events
+                .iter()
+                .filter(|(cwd, _, _)| cwd == &win.pane_path)
+                .max_by_key(|(_, _, mtime)| *mtime);
 
-            let tracker = self
-                .trackers
-                .entry(win.index)
-                .or_insert_with(|| {
-                    let worked = check_worked(win.index);
-                    WindowTracker {
-                        prev_raw: raw_capture.clone(),
-                        change_streak: 0,
-                        stable_streak: 0,
-                        ever_worked: worked,
-                        was_working: false,
-                        turn_complete: worked,
-                    }
-                });
-
-            // Count how many lines actually changed — user typing ≈ 1 line,
-            // Claude generating ≈ 2+ lines.
-            let diff = changed_line_count(&tracker.prev_raw, &raw_capture);
-            let significant = diff >= SIGNIFICANT_LINES;
-
-            // Any content change clears turn_complete — user is interacting,
-            // so hide (ready) until Claude responds again.
-            if diff > 0 {
-                tracker.turn_complete = false;
-            }
-
-            if significant {
-                tracker.change_streak += 1;
-                tracker.stable_streak = 0;
-            } else {
-                tracker.stable_streak += 1;
-                tracker.change_streak = 0;
-            }
-
-            let state = if tracker.change_streak >= WORK_ENTER_TICKS {
-                // Sustained multi-line changes — Claude is generating
-                if !tracker.ever_worked {
-                    tracker.ever_worked = true;
-                    mark_worked(win.index);
-                }
-                tracker.was_working = true;
-                WindowState::Working
-            } else if tracker.was_working && tracker.stable_streak < WORK_EXIT_TICKS {
-                // Recently was working, brief pause — keep showing Working
-                WindowState::Working
-            } else {
-                if tracker.was_working {
-                    // Transitioning from Working → stable: Claude finished this turn
-                    tracker.turn_complete = true;
-                }
-                tracker.was_working = false;
-                if tracker.turn_complete {
-                    if detect_question(&raw_capture) {
-                        WindowState::Asking
-                    } else {
-                        WindowState::Idle
-                    }
-                } else {
-                    WindowState::Fresh
-                }
+            let state = match matched {
+                Some((_, state_str, _)) => state_from_str(state_str),
+                None => WindowState::Fresh,
             };
 
-            tracker.prev_raw = raw_capture;
             states.insert(win.index, state);
         }
 
-        // Prune trackers for windows that no longer exist
-        let live_indices: std::collections::HashSet<u32> =
-            windows.iter().map(|w| w.index).collect();
-        self.trackers.retain(|idx, _| {
-            let keep = live_indices.contains(idx);
-            if !keep {
-                clear_worked(*idx);
-            }
-            keep
-        });
-
         states
+    }
+}
+
+// ── Tests ──
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_read_last_line_single() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.jsonl");
+        let mut f = fs::File::create(&path).unwrap();
+        writeln!(f, r#"{{"state":"working","cwd":"/tmp","ts":1000}}"#).unwrap();
+
+        let line = read_last_line(&path).unwrap();
+        assert!(line.contains(r#""state":"working""#));
+    }
+
+    #[test]
+    fn test_read_last_line_multiple() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.jsonl");
+        let mut f = fs::File::create(&path).unwrap();
+        writeln!(f, r#"{{"state":"working","cwd":"/tmp","ts":1000}}"#).unwrap();
+        writeln!(f, r#"{{"state":"idle","cwd":"/tmp","ts":1001}}"#).unwrap();
+
+        let line = read_last_line(&path).unwrap();
+        assert!(line.contains(r#""state":"idle""#));
+    }
+
+    #[test]
+    fn test_read_last_line_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.jsonl");
+        fs::File::create(&path).unwrap();
+
+        assert!(read_last_line(&path).is_none());
+    }
+
+    #[test]
+    fn test_read_last_line_missing() {
+        let path = Path::new("/nonexistent/test.jsonl");
+        assert!(read_last_line(path).is_none());
+    }
+
+    #[test]
+    fn test_load_latest_events() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let mut f1 = fs::File::create(dir.path().join("session-a.jsonl")).unwrap();
+        writeln!(f1, r#"{{"state":"working","cwd":"/project-a","ts":1000}}"#).unwrap();
+        writeln!(f1, r#"{{"state":"idle","cwd":"/project-a","ts":1001}}"#).unwrap();
+
+        let mut f2 = fs::File::create(dir.path().join("session-b.jsonl")).unwrap();
+        writeln!(f2, r#"{{"state":"asking","cwd":"/project-b","ts":2000}}"#).unwrap();
+
+        let events = load_latest_events(dir.path());
+        assert_eq!(events.len(), 2);
+
+        let a = events.iter().find(|(cwd, _, _)| cwd == "/project-a").unwrap();
+        assert_eq!(a.1, "idle");
+
+        let b = events.iter().find(|(cwd, _, _)| cwd == "/project-b").unwrap();
+        assert_eq!(b.1, "asking");
+    }
+
+    #[test]
+    fn test_load_latest_events_empty_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let events = load_latest_events(dir.path());
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn test_load_latest_events_missing_dir() {
+        let events = load_latest_events(Path::new("/nonexistent/events"));
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn test_state_from_str() {
+        assert_eq!(state_from_str("working"), WindowState::Working);
+        assert_eq!(state_from_str("idle"), WindowState::Idle);
+        assert_eq!(state_from_str("asking"), WindowState::Asking);
+        assert_eq!(state_from_str("unknown"), WindowState::Fresh);
     }
 }
