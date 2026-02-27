@@ -4,52 +4,71 @@
 
 SESSION="ccs"
 
+# ── Catppuccin Mocha ──
+C_PEACH=$'\033[38;2;250;179;135m'
+C_LAVENDER=$'\033[38;2;180;190;254m'
+C_BLUE=$'\033[38;2;137;180;250m'
+C_SUBTEXT=$'\033[38;2;166;173;200m'
+C_OVERLAY=$'\033[38;2;108;112;134m'
+C_SURFACE=$'\033[38;2;69;71;90m'
+C_BOLD=$'\033[1m'
+C_R=$'\033[0m'
+
 setup_layout() {
     local win="$SESSION:$1"
-    tmux split-window -t "$win" -h -p 25 "~/.local/bin/tmux-sidebar"
-    tmux split-window -t "$win.2" -v -l 12
+    tmux set-option -w -t "$win" remain-on-exit on
+    tmux split-window -t "$win" -v -p 25
+    tmux split-window -t "$win.2" -h -p 25 "~/.local/bin/tmux-sidebar"
     tmux select-pane -t "$win.1"
     tmux send-keys -t "$win.1" "claude" Enter
 }
 
 usage() {
-    cat <<'EOF'
-ccs — Claude Code session manager
-
-Usage:
-  ccs start [name] [dir]    Start the session manager (creates first session)
-  ccs new <name> [dir]      Add a new Claude Code session tab
-  ccs list                  List all active session tabs
-  ccs kill [name]           Kill a session tab (or all if no name given)
-  ccs help                  Show this help
-
-Examples:
-  ccs start pancake ~/workspace/personal/pancake
-  ccs new rag ~/workspace/personal/technical-rag
-  ccs list
-  ccs kill rag
-  ccs kill
-EOF
+    printf "%s%sccs%s — Claude Code session manager\n" "$C_LAVENDER" "$C_BOLD" "$C_R"
+    printf "\n"
+    printf "%sUsage:%s\n" "$C_BLUE" "$C_R"
+    printf "  %scss start%s [name] [dir]    Start session manager\n" "$C_PEACH" "$C_R"
+    printf "  %scss new%s   <name> [dir]    Add a new session tab\n" "$C_PEACH" "$C_R"
+    printf "  %scss list%s                  List active sessions\n" "$C_PEACH" "$C_R"
+    printf "  %scss kill%s  [name]          Kill a session (or all)\n" "$C_PEACH" "$C_R"
+    printf "  %scss help%s                  Show this help\n" "$C_PEACH" "$C_R"
+    printf "\n"
+    printf "%sLayout:%s\n" "$C_BLUE" "$C_R"
+    printf "  %s┌──────────────────────────────────┐%s\n" "$C_SURFACE" "$C_R"
+    printf "  %s│%s                                  %s│%s\n" "$C_SURFACE" "$C_R" "$C_SURFACE" "$C_R"
+    printf "  %s│%s        %sclaude code%s               %s│%s\n" "$C_SURFACE" "$C_R" "$C_PEACH" "$C_R" "$C_SURFACE" "$C_R"
+    printf "  %s│%s                                  %s│%s\n" "$C_SURFACE" "$C_R" "$C_SURFACE" "$C_R"
+    printf "  %s├──────────────────────┬───────────┤%s\n" "$C_SURFACE" "$C_R"
+    printf "  %s│%s     %sterminal%s        %s│%s %ssessions%s %s│%s\n" "$C_SURFACE" "$C_R" "$C_BLUE" "$C_R" "$C_SURFACE" "$C_R" "$C_SUBTEXT" "$C_R" "$C_SURFACE" "$C_R"
+    printf "  %s└──────────────────────┴───────────┘%s\n" "$C_SURFACE" "$C_R"
+    printf "\n"
+    printf "%sShortcuts:%s %s(Ghostty)%s\n" "$C_BLUE" "$C_R" "$C_OVERLAY" "$C_R"
+    printf "  ⌘J  focus claude    ⌘P  focus sessions\n"
+    printf "  ⌘M  focus terminal\n"
+    printf "\n"
+    printf "%sExamples:%s\n" "$C_BLUE" "$C_R"
+    printf "  %s\$%s ccs start pancake ~/workspace/personal/pancake\n" "$C_OVERLAY" "$C_R"
+    printf "  %s\$%s ccs new rag ~/workspace/personal/technical-rag\n" "$C_OVERLAY" "$C_R"
+    printf "  %s\$%s ccs list\n" "$C_OVERLAY" "$C_R"
+    printf "  %s\$%s ccs kill rag\n" "$C_OVERLAY" "$C_R"
 }
 
 cmd_start() {
     local name=${1:-"session-1"}
     local dir=${2:-$(pwd)}
 
-    # If already inside the ccs tmux session, suggest ccs new
     if [ -n "$TMUX" ]; then
         local current_session
         current_session=$(tmux display-message -p '#S')
         if [ "$current_session" = "$SESSION" ]; then
-            echo "Already inside the ccs session. Did you mean:"
-            echo "  ccs new $name $dir"
+            printf "Already inside ccs. Did you mean:\n"
+            printf "  %scss new%s %s %s\n" "$C_PEACH" "$C_R" "$name" "$dir"
             return 1
         fi
     fi
 
-    # Re-attach if session already exists
     if tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "Session exists. Re-attaching..."
+        printf "Session exists. Re-attaching...\n"
         tmux attach -t "$SESSION"
         return 0
     fi
@@ -58,8 +77,10 @@ cmd_start() {
     # No -d flag: new-session sizes to the actual terminal, so the layout
     # is built at real dimensions — no detach/attach resize mismatch.
     tmux new-session -s "$SESSION" -n "$name" -c "$dir" \; \
-        split-window -h -p 25 "~/.local/bin/tmux-sidebar" \; \
-        split-window -t .2 -v -l 12 \; \
+        set-option -w remain-on-exit on \; \
+        set-hook pane-died 'respawn-pane' \; \
+        split-window -v -p 25 \; \
+        split-window -t .2 -h -p 25 "~/.local/bin/tmux-sidebar" \; \
         select-pane -t .1 \; \
         send-keys -t .1 "claude" Enter
 }
@@ -68,37 +89,36 @@ cmd_new() {
     local name=${1:?"Usage: ccs new <name> [directory]"}
     local dir=${2:-$(pwd)}
 
-    # Must be inside tmux
     if [ -z "$TMUX" ]; then
-        echo "Not inside a tmux session. Start one first:"
-        echo "  ccs start $name $dir"
+        printf "Not inside tmux. Start first:\n"
+        printf "  %scss start%s %s %s\n" "$C_PEACH" "$C_R" "$name" "$dir"
         return 1
     fi
 
     # Session must already exist (created by ccs start)
     if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "No active ccs session. Start one first:"
-        echo "  ccs start $name $dir"
+        printf "No active ccs session. Start first:\n"
+        printf "  %scss start%s %s %s\n" "$C_PEACH" "$C_R" "$name" "$dir"
         return 1
     fi
 
-    # Create new window and set up layout
     tmux new-window -t "$SESSION" -n "$name" -c "$dir"
     setup_layout "$name"
 }
 
 cmd_list() {
     if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "No active ccs session."
+        printf "%sNo active ccs session.%s\n" "$C_OVERLAY" "$C_R"
         return 1
     fi
 
-    tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_name}|#{window_active}' | \
-    while IFS='|' read -r idx name active; do
+    tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_name}|#{window_active}|#{pane_current_path}' | \
+    while IFS='|' read -r _idx name active dir; do
+        dir="${dir/#$HOME/\~}"
         if [ "$active" = "1" ]; then
-            printf '  \033[1;33m▶ %s  %s\033[0m\n' "$idx" "$name"
+            printf "  %s●%s %s%s%s%s  %s%s%s\n" "$C_PEACH" "$C_R" "$C_PEACH" "$C_BOLD" "$name" "$C_R" "$C_SUBTEXT" "$dir" "$C_R"
         else
-            printf '    %s  %s\n' "$idx" "$name"
+            printf "  %s·%s %s%s%s  %s%s%s\n" "$C_OVERLAY" "$C_R" "$C_OVERLAY" "$name" "$C_R" "$C_SURFACE" "$dir" "$C_R"
         fi
     done
 }
@@ -107,7 +127,7 @@ cmd_kill() {
     local name=$1
 
     if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "No active ccs session."
+        printf "%sNo active ccs session.%s\n" "$C_OVERLAY" "$C_R"
         return 1
     fi
 
@@ -119,14 +139,13 @@ cmd_kill() {
             return 0
         fi
         tmux kill-session -t "$SESSION"
-        echo "Killed all ccs sessions."
+        printf "Killed all sessions.\n"
     else
         tmux kill-window -t "$SESSION:$name"
-        echo "Killed session tab: $name"
+        printf "Killed: %s%s%s\n" "$C_PEACH" "$name" "$C_R"
     fi
 }
 
-# Parse subcommand
 case "${1:-help}" in
     start)  shift; cmd_start "$@" ;;
     new)    shift; cmd_new "$@" ;;
@@ -134,8 +153,8 @@ case "${1:-help}" in
     kill)   shift; cmd_kill "$@" ;;
     help|-h|--help) usage ;;
     *)
-        echo "Unknown command: $1"
-        echo "Run 'ccs help' for usage."
+        printf "Unknown command: %s\n" "$1"
+        printf "Run '%scss help%s' for usage.\n" "$C_PEACH" "$C_R"
         exit 1
         ;;
 esac
