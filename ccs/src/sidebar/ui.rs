@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
 
@@ -60,6 +60,9 @@ impl Widget for SidebarWidget<'_> {
                 format!("{window_count} session{plural}"),
                 Style::default().fg(colors::OVERLAY),
             ),
+            Span::styled(" \u{00b7} ", Style::default().fg(colors::SURFACE)),
+            Span::styled("\u{2191}\u{2193}", Style::default().fg(colors::BLUE)),
+            Span::styled(" navigate", Style::default().fg(colors::OVERLAY)),
         ]);
         if area.height > 0 {
             buf.set_line(area.x, area.y, &header, area.width);
@@ -100,9 +103,9 @@ impl Widget for SidebarWidget<'_> {
 
                 let (bullet, name_style) = if is_selected {
                     (
-                        Span::styled("\u{25cf}", Style::default().fg(colors::PEACH)),
+                        Span::styled("\u{276f}", Style::default().fg(Color::White)),
                         Style::default()
-                            .fg(colors::PEACH)
+                            .fg(Color::White)
                             .add_modifier(Modifier::BOLD),
                     )
                 } else {
@@ -118,7 +121,20 @@ impl Widget for SidebarWidget<'_> {
                     Span::raw(" "),
                     Span::styled(&win.name, name_style),
                 ];
-                spans.extend(state_indicator(state, self.tick));
+
+                let status = status_text(state);
+                if matches!(state, WindowState::Working) {
+                    // Spinner renders inline right after the name
+                    spans.push(status_span(state, self.tick));
+                } else if !status.is_empty() {
+                    // Right-align status text against the legend column
+                    let name_width = 3 + win.name.len(); // " · " or " ❯ " prefix + name
+                    let status_width = status.len() + 2; // 2 spaces before status
+                    let pad = (right_col as usize).saturating_sub(name_width + status_width);
+                    spans.push(Span::raw(" ".repeat(pad)));
+                    spans.push(status_span(state, self.tick));
+                }
+
                 let line = Line::from(spans);
                 buf.set_line(area.x, y, &line, right_col);
             }
@@ -141,24 +157,22 @@ impl Widget for SidebarWidget<'_> {
 
 const SPINNER: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
-fn state_indicator(state: WindowState, tick: u64) -> Vec<Span<'static>> {
+fn status_text(state: WindowState) -> &'static str {
     match state {
-        WindowState::Working => {
-            let frame = SPINNER[tick as usize % SPINNER.len()];
-            vec![Span::styled(format!(" {frame}"), Style::default().fg(colors::LAVENDER))]
-        }
-        WindowState::Asking => status_label("waiting", colors::PEACH),
-        WindowState::Idle => status_label("ready", colors::GREEN),
-        WindowState::Done => status_label("done", colors::OVERLAY),
-        WindowState::Fresh => vec![],
+        WindowState::Working => "",
+        WindowState::Asking => "waiting\u{2026}",
+        WindowState::Idle => "ready",
+        WindowState::Done => "done",
+        WindowState::Fresh => "",
     }
 }
 
-/// Render ` (label)` with dim parens and colored text.
-fn status_label(label: &'static str, color: ratatui::style::Color) -> Vec<Span<'static>> {
-    vec![
-        Span::styled(" (", Style::default().fg(colors::SURFACE)),
-        Span::styled(label, Style::default().fg(color)),
-        Span::styled(")", Style::default().fg(colors::SURFACE)),
-    ]
+fn status_span(state: WindowState, tick: u64) -> Span<'static> {
+    match state {
+        WindowState::Working => {
+            let frame = SPINNER[tick as usize % SPINNER.len()];
+            Span::styled(format!(" {frame}"), Style::default().fg(colors::LAVENDER))
+        }
+        _ => Span::styled(status_text(state), Style::default().fg(colors::OVERLAY)),
+    }
 }
