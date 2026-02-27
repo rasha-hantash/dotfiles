@@ -19,7 +19,8 @@ C_R=$'\033[0m'
 typeset -a win_indices win_names win_dirs
 
 tput civis
-trap 'tput cnorm' EXIT
+tput rmam
+trap 'tput cnorm; tput smam' EXIT
 
 refresh_windows() {
     win_indices=()
@@ -45,8 +46,9 @@ render() {
     tput cup 0 0
 
     # ── Header ──
-    printf " ${C_LAVENDER}${C_BOLD}ccs${C_R} ${C_OVERLAY}· %d session%s${C_R}\033[K\n" \
-        "$window_count" "$([[ $window_count -ne 1 ]] && echo 's')"
+    local plural="$([[ $window_count -ne 1 ]] && echo 's')"
+    printf " ${C_LAVENDER}${C_BOLD}%d session%s${C_R} ${C_OVERLAY}·${C_R} ${C_BLUE}↑↓${C_R}${C_OVERLAY} switch${C_R}  ${C_BLUE}⌘J${C_R}${C_OVERLAY} claude${C_R}  ${C_BLUE}⌘P${C_R}${C_OVERLAY} here${C_R}  ${C_BLUE}⌘M${C_R}${C_OVERLAY} term${C_R}\033[K\n" \
+        "$window_count" "$plural"
     printf '%s\033[K\n' "$sep"
 
     # ── Session list ──
@@ -85,18 +87,8 @@ render() {
         done
     fi
 
-    # ── Clear to footer ──
-    local content=$(( 2 + (window_count > 0 ? window_count : 1) ))
-    local cur=$content
-    while (( cur < lines - 2 )); do
-        printf '\033[K\n'
-        ((cur++))
-    done
-
-    # ── Footer (pinned to bottom) ──
-    tput cup $((lines - 2)) 0
-    printf '%s\033[K\n' "$sep"
-    printf " ${C_BLUE}↑↓${C_R}${C_OVERLAY} switch${C_R}  ${C_BLUE}⌘J${C_R}${C_OVERLAY} claude${C_R}  ${C_BLUE}⌘P${C_R}${C_OVERLAY} here${C_R}  ${C_BLUE}⌘M${C_R}${C_OVERLAY} term${C_R}\033[K"
+    # ── Clear to bottom ──
+    printf '\033[J'
 }
 
 while true; do
