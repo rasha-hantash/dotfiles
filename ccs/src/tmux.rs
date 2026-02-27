@@ -97,6 +97,8 @@ pub fn new_session(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), Strin
             "-v",
             "-p",
             "25",
+            "-c",
+            dir,
             ";",
             "split-window",
             "-t",
@@ -137,7 +139,7 @@ pub fn new_window(name: &str, dir: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn setup_layout(name: &str, sidebar_bin: &str) -> Result<(), String> {
+pub fn setup_layout(name: &str, dir: &str, sidebar_bin: &str) -> Result<(), String> {
     let win = format!("{SESSION}:{name}");
     let status = Command::new("tmux")
         .args([
@@ -154,6 +156,8 @@ pub fn setup_layout(name: &str, sidebar_bin: &str) -> Result<(), String> {
             "-v",
             "-p",
             "25",
+            "-c",
+            dir,
             ";",
             "split-window",
             "-t",
