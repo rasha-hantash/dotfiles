@@ -45,6 +45,12 @@ fn detect_question(capture: &str) -> bool {
     QUESTION_RE.is_match(&tail)
 }
 
+/// Does the capture contain Claude Code's input prompt (`❯`)?
+/// Used to detect when Claude Code has finished loading and is ready for input.
+fn detect_prompt(capture: &str) -> bool {
+    capture.lines().any(|line| line.trim().starts_with('❯'))
+}
+
 /// How many consecutive significant-change ticks before we enter Working.
 const WORK_ENTER_TICKS: u32 = 2;
 /// How many consecutive quiet ticks before we leave Working.
@@ -59,12 +65,27 @@ struct WindowTracker {
     /// True after Claude finishes a generation turn. Cleared on any content change
     /// (user typing resets it so `(ready)` disappears until Claude responds again).
     turn_complete: bool,
+    /// True once Claude Code's input prompt (`❯`) has appeared in the capture.
+    /// Until this is set, the state machine is suppressed to avoid treating
+    /// Claude Code's startup/loading sequence as "working."
+    prompt_seen: bool,
 }
 
 impl WindowTracker {
     /// Feed a new capture and return the current state.
     /// Keeps all I/O (filesystem, tmux) out — caller handles side effects.
     fn update(&mut self, raw_capture: &str) -> WindowState {
+        // Don't track state until Claude Code's input prompt appears.
+        // This prevents startup loading from being detected as "working."
+        if !self.prompt_seen {
+            if detect_prompt(raw_capture) {
+                self.prompt_seen = true;
+            } else {
+                self.prev_raw = raw_capture.to_string();
+                return WindowState::Fresh;
+            }
+        }
+
         let changed = any_change(&self.prev_raw, raw_capture);
         let significant = changed && is_significant_change(&self.prev_raw, raw_capture);
 
@@ -223,6 +244,8 @@ impl StateDetector {
                         ever_worked: worked,
                         was_working: false,
                         turn_complete: worked,
+                        // If Claude already worked (cross-instance), prompt was definitely seen
+                        prompt_seen: worked,
                     }
                 });
 
@@ -263,6 +286,7 @@ mod tests {
             ever_worked: false,
             was_working: false,
             turn_complete: false,
+            prompt_seen: true, // Tests default to prompt already seen (post-startup)
         }
     }
 
@@ -270,6 +294,19 @@ mod tests {
     fn run_sequence(captures: &[&str]) -> Vec<WindowState> {
         let mut tracker = fresh_tracker();
         captures.iter().map(|c| tracker.update(c)).collect()
+    }
+
+    /// Create a tracker that simulates a brand-new window (prompt not yet seen).
+    fn startup_tracker() -> WindowTracker {
+        WindowTracker {
+            prev_raw: String::new(),
+            change_streak: 0,
+            stable_streak: 0,
+            ever_worked: false,
+            was_working: false,
+            turn_complete: false,
+            prompt_seen: false,
+        }
     }
 
     // ── Pure helper tests: any_change ──
@@ -524,6 +561,7 @@ mod tests {
             ever_worked: true,
             was_working: false,
             turn_complete: true,
+            prompt_seen: true, // Cross-instance: if Claude worked, prompt was seen
         };
 
         let state = tracker.update("stable content\nline two");
@@ -542,27 +580,120 @@ mod tests {
         assert!(tracker.ever_worked, "ever_worked should be set after entering Working");
     }
 
+    // ── Prompt detection tests ──
+
     #[test]
-    fn stale_state_causes_false_ready_then_clears() {
-        // Bug: stale /tmp/ccs-state/ file from a dead session makes a new session
-        // show "(ready)" immediately. Then Claude loads, content changes, and
-        // turn_complete is cleared → "(ready)" disappears.
+    fn detect_prompt_with_input_marker() {
+        assert!(detect_prompt("some output\n❯ "));
+    }
+
+    #[test]
+    fn detect_prompt_with_user_text() {
+        assert!(detect_prompt("some output\n❯ hello world"));
+    }
+
+    #[test]
+    fn detect_prompt_bare() {
+        assert!(detect_prompt("some output\n❯"));
+    }
+
+    #[test]
+    fn no_prompt_during_loading() {
+        assert!(!detect_prompt("Loading Claude Code...\nInitializing..."));
+    }
+
+    #[test]
+    fn no_prompt_during_generation() {
+        assert!(!detect_prompt("Here is the answer:\nfn main() {\n    println!(\"hello\");"));
+    }
+
+    // ── Startup suppression tests ──
+
+    #[test]
+    fn startup_loading_stays_fresh() {
+        // Claude Code is loading — content changes but no prompt yet.
+        // The state machine should be suppressed, always returning Fresh.
+        let mut tracker = startup_tracker();
+
+        // Simulate startup: significant changes (upper lines shifting)
+        for i in 0..5 {
+            let state = tracker.update(&format!("loading {i}\nprogress {i}\nbottom"));
+            assert_eq!(state, WindowState::Fresh, "tick {i} during startup should be Fresh");
+        }
+
+        // Stabilize — still no prompt
+        let stable = "loading 4\nprogress 4\nbottom";
+        for _ in 0..10 {
+            assert_eq!(tracker.update(stable), WindowState::Fresh);
+        }
+
+        // Without prompt_seen guard, this would have been Working → Idle.
+        // With it, stays Fresh the entire time.
+        assert!(!tracker.ever_worked);
+        assert!(!tracker.prompt_seen);
+    }
+
+    #[test]
+    fn prompt_appearing_unblocks_state_machine() {
+        let mut tracker = startup_tracker();
+
+        // Startup loading (no prompt)
+        tracker.update("Loading...");
+        tracker.update("Initializing...\nSetting up...");
+        assert_eq!(tracker.update("Welcome to Claude\nReady"), WindowState::Fresh);
+
+        // Prompt appears — state machine unblocks
+        let state = tracker.update("Welcome to Claude\n❯ ");
+        assert!(tracker.prompt_seen);
+        // First tick after prompt: prev_raw was set during startup, this is a change
+        // but still should be Fresh (no work done yet)
+        assert_eq!(state, WindowState::Fresh);
+    }
+
+    #[test]
+    fn full_startup_to_working_to_idle() {
+        let mut tracker = startup_tracker();
+
+        // Phase 1: Startup (suppressed)
+        tracker.update("Loading Claude Code...");
+        tracker.update("Initializing...\nConnecting...");
+        tracker.update("Welcome\n❯ "); // prompt appears
+
+        // Phase 2: User sends message, Claude starts working
+        // Significant changes (upper lines shift)
+        tracker.update("User: help me\nClaude: Sure\n❯ ");
+        tracker.update("Claude: Sure, I'll\nhelp with that\n❯ ");
+        let state = tracker.update("help with that\nHere's the code:\nfn main() {}");
+        assert_eq!(state, WindowState::Working);
+
+        // Phase 3: Claude finishes, content stabilizes
+        let stable = "help with that\nHere's the code:\nfn main() {}";
+        for _ in 0..WORK_EXIT_TICKS {
+            tracker.update(stable);
+        }
+        assert_eq!(tracker.update(stable), WindowState::Idle);
+    }
+
+    #[test]
+    fn cross_instance_bypasses_prompt_check() {
+        // Cross-instance: prompt_seen is initialized to true when ever_worked is true.
+        // This means we don't wait for the prompt — we trust the other sidebar's state.
+        // Note: real tmux captures have trailing blank lines after ❯, so ❯ is NOT
+        // in the last 2 lines and doesn't trigger detect_question.
+        // Real tmux captures have many trailing blank lines after ❯ (pane height
+        // is much taller than content), so ❯ is NOT in the last 2 lines.
+        let capture = "stable content\n❯ \n\n\n";
         let mut tracker = WindowTracker {
-            prev_raw: "loading claude...".to_string(),
+            prev_raw: capture.to_string(),
             change_streak: 0,
             stable_streak: 0,
-            ever_worked: true,  // ← stale cross-instance state
+            ever_worked: true,
             was_working: false,
-            turn_complete: true, // ← causes Idle ("ready") on first tick
+            turn_complete: true,
+            prompt_seen: true, // Set because ever_worked was true
         };
 
-        // First tick: stable content → Idle (false "ready")
-        let state = tracker.update("loading claude...");
-        assert_eq!(state, WindowState::Idle, "stale state shows false ready");
-
-        // Claude finishes loading — content changes (non-significant, last line only)
-        let state = tracker.update("loading claude...\n>");
-        // turn_complete cleared by any_change → Fresh
-        assert_eq!(state, WindowState::Fresh, "ready should disappear after content change");
+        let state = tracker.update(capture);
+        assert_eq!(state, WindowState::Idle, "cross-instance should show Idle immediately");
     }
 }
