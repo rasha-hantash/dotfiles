@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 # Interactive sidebar for Claude Code session tabs
-# Click or Ctrl+a s to focus, Up/Down to navigate, Enter to switch
+# Click or Ctrl+a s to focus, Up/Down to navigate (auto-switches)
 
 SESSION="ccs"
 selected=0
@@ -36,8 +36,7 @@ render() {
     window_count=$i
 
     printf '───────────────────────\033[K\n'
-    printf '\033[90m ↑/↓  navigate\033[0m\033[K\n'
-    printf '\033[90m Enter switch\033[0m\033[K\n'
+    printf '\033[90m ↑/↓  switch\033[0m\033[K\n'
     printf '\033[90m C-a s focus\033[0m\033[K\n'
     printf '\033[J'
 }
@@ -55,11 +54,19 @@ while true; do
             # Escape sequence — read the rest immediately
             read -rsk2 -t 0 rest 2>/dev/null
             case "$rest" in
-                '[A') # Up
-                    (( selected > 0 )) && (( selected-- ))
+                '[A') # Up — switch window, keep focus on sidebar for continued navigation
+                    if (( selected > 0 )); then
+                        (( selected-- ))
+                        target=$(get_window_index_at $selected)
+                        [[ -n $target ]] && tmux select-window -t "$SESSION:$target" && tmux select-pane -t :.2
+                    fi
                     ;;
-                '[B') # Down
-                    (( selected < window_count - 1 )) && (( selected++ ))
+                '[B') # Down — switch window, keep focus on sidebar for continued navigation
+                    if (( selected < window_count - 1 )); then
+                        (( selected++ ))
+                        target=$(get_window_index_at $selected)
+                        [[ -n $target ]] && tmux select-window -t "$SESSION:$target" && tmux select-pane -t :.2
+                    fi
                     ;;
             esac
         elif [[ $key == $'\n' || $key == $'\r' ]]; then
