@@ -27,8 +27,7 @@ usage() {
     printf "%s%sccs%s — Claude Code session manager\n" "$C_LAVENDER" "$C_BOLD" "$C_R"
     printf "\n"
     printf "%sUsage:%s\n" "$C_BLUE" "$C_R"
-    printf "  %scss start%s [name] [dir]    Start session manager\n" "$C_PEACH" "$C_R"
-    printf "  %scss new%s   <name> [dir]    Add a new session tab\n" "$C_PEACH" "$C_R"
+    printf "  %scss start%s [name] [dir]    Start or add a session tab\n" "$C_PEACH" "$C_R"
     printf "  %scss list%s                  List active sessions\n" "$C_PEACH" "$C_R"
     printf "  %scss kill%s  <name>          Kill a single session tab\n" "$C_PEACH" "$C_R"
     printf "  %scss all-kill%s              Kill all sessions\n" "$C_PEACH" "$C_R"
@@ -36,7 +35,7 @@ usage() {
     printf "\n"
     printf "%sExamples:%s\n" "$C_BLUE" "$C_R"
     printf "  %s\$%s ccs start pancake ~/workspace/personal/pancake\n" "$C_OVERLAY" "$C_R"
-    printf "  %s\$%s ccs new rag ~/workspace/personal/technical-rag\n" "$C_OVERLAY" "$C_R"
+    printf "  %s\$%s ccs start rag ~/workspace/personal/technical-rag\n" "$C_OVERLAY" "$C_R"
     printf "  %s\$%s ccs list\n" "$C_OVERLAY" "$C_R"
     printf "  %s\$%s ccs kill rag\n" "$C_OVERLAY" "$C_R"
 }
@@ -45,53 +44,32 @@ cmd_start() {
     local name=${1:-"session-1"}
     local dir=${2:-$(pwd)}
 
-    if [ -n "$TMUX" ]; then
-        local current_session
-        current_session=$(tmux display-message -p '#S')
-        if [ "$current_session" = "$SESSION" ]; then
-            printf "Already inside ccs. Did you mean:\n"
-            printf "  %scss new%s %s %s\n" "$C_PEACH" "$C_R" "$name" "$dir"
+    if tmux has-session -t "$SESSION" 2>/dev/null; then
+        # Session exists — add a new window
+        tmux new-window -t "$SESSION" -n "$name" -c "$dir"
+        setup_layout "$name"
+
+        # If we're outside tmux, attach so the user sees it
+        if [ -z "$TMUX" ]; then
+            tmux attach -t "$SESSION"
+        fi
+    else
+        # No session — create from scratch.
+        # new-session must run outside tmux to get real terminal dimensions.
+        if [ -n "$TMUX" ]; then
+            printf "No ccs session exists. Run from outside tmux first:\n"
+            printf "  %scss start%s %s %s\n" "$C_PEACH" "$C_R" "$name" "$dir"
             return 1
         fi
+
+        tmux new-session -s "$SESSION" -n "$name" -c "$dir" \; \
+            set-option -w remain-on-exit on \; \
+            set-hook pane-died 'respawn-pane' \; \
+            split-window -v -p 25 \; \
+            split-window -t .2 -h -p 30 "~/.local/bin/tmux-sidebar" \; \
+            select-pane -t .1 \; \
+            send-keys -t .1 "claude" Enter
     fi
-
-    if tmux has-session -t "$SESSION" 2>/dev/null; then
-        printf "Session exists. Re-attaching...\n"
-        tmux attach -t "$SESSION"
-        return 0
-    fi
-
-    # Create session and build layout in one atomic operation.
-    # No -d flag: new-session sizes to the actual terminal, so the layout
-    # is built at real dimensions — no detach/attach resize mismatch.
-    tmux new-session -s "$SESSION" -n "$name" -c "$dir" \; \
-        set-option -w remain-on-exit on \; \
-        set-hook pane-died 'respawn-pane' \; \
-        split-window -v -p 25 \; \
-        split-window -t .2 -h -p 30 "~/.local/bin/tmux-sidebar" \; \
-        select-pane -t .1 \; \
-        send-keys -t .1 "claude" Enter
-}
-
-cmd_new() {
-    local name=${1:?"Usage: ccs new <name> [directory]"}
-    local dir=${2:-$(pwd)}
-
-    if [ -z "$TMUX" ]; then
-        printf "Not inside tmux. Start first:\n"
-        printf "  %scss start%s %s %s\n" "$C_PEACH" "$C_R" "$name" "$dir"
-        return 1
-    fi
-
-    # Session must already exist (created by ccs start)
-    if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-        printf "No active ccs session. Start first:\n"
-        printf "  %scss start%s %s %s\n" "$C_PEACH" "$C_R" "$name" "$dir"
-        return 1
-    fi
-
-    tmux new-window -t "$SESSION" -n "$name" -c "$dir"
-    setup_layout "$name"
 }
 
 cmd_list() {
@@ -134,8 +112,7 @@ cmd_kill_all() {
 }
 
 case "${1:-help}" in
-    start)  shift; cmd_start "$@" ;;
-    new)    shift; cmd_new "$@" ;;
+    start|new) shift; cmd_start "$@" ;;
     list|ls) shift; cmd_list "$@" ;;
     kill)   shift; cmd_kill "$@" ;;
     all-kill) cmd_kill_all ;;
