@@ -1,0 +1,10 @@
+[package]
+name = "ccs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+ratatui = "0.29"
+crossterm = "0.28"
+regex = "1"
