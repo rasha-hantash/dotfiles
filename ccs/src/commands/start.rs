@@ -81,7 +81,7 @@ pub fn run(name: &str, dir: Option<&str>) -> Result<(), String> {
         }
 
         tmux::new_window(name, &dir)?;
-        tmux::setup_layout(name, &sidebar_cmd)?;
+        tmux::setup_layout(name, &dir, &sidebar_cmd)?;
 
         // If outside tmux, attach so the user sees it
         if !tmux::is_inside_tmux() {
