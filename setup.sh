@@ -20,7 +20,7 @@ ok()    { printf "${C_GREEN}  ✓${C_R} %s\n" "$*"; }
 warn()  { printf "${C_PEACH}  !${C_R} %s\n" "$*"; }
 err()   { printf "${C_RED}  ✗${C_R} %s\n" "$*"; }
 
-# Symlink helper — asks before overwriting existing files
+# Symlink helper — asks before overwriting existing files or directories
 link_file() {
     local src="$1" dst="$2" name="$3"
 
@@ -39,6 +39,16 @@ link_file() {
             return
         fi
         rm "$dst"
+    elif [ -d "$dst" ]; then
+        warn "$name exists at $dst (is a directory)"
+        printf "    Back up to %s.bak and replace with symlink? [y/N] " "$dst"
+        read -r confirm
+        if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+            warn "Skipped $name"
+            return
+        fi
+        mv "$dst" "$dst.bak"
+        ok "Backed up to $dst.bak"
     elif [ -e "$dst" ]; then
         warn "$name exists at $dst (not a symlink)"
         printf "    Back up to %s.bak and replace? [y/N] " "$dst"
@@ -105,6 +115,13 @@ info "Linking configs..."
 link_file "$DOTFILES/tmux/tmux.conf" "$HOME/.tmux.conf" "tmux config"
 link_file "$DOTFILES/ghostty/config" "$HOME/.config/ghostty/config" "Ghostty config"
 link_file "$DOTFILES/claude-code/keybindings.json" "$HOME/.claude/keybindings.json" "Claude Code keybindings"
+link_file "$DOTFILES/claude-code/settings.json" "$HOME/.claude/settings.json" "Claude Code settings"
+link_file "$DOTFILES/claude-code/settings.local.json" "$HOME/.claude/settings.local.json" "Claude Code local settings"
+link_file "$DOTFILES/claude-code/CLAUDE.md" "$HOME/.claude/CLAUDE.md" "Claude Code global instructions"
+link_file "$DOTFILES/claude-code/statusline-command.sh" "$HOME/.claude/statusline-command.sh" "Claude Code statusline"
+link_file "$DOTFILES/claude-code/hooks" "$HOME/.claude/hooks" "Claude Code hooks"
+link_file "$DOTFILES/claude-code/agents" "$HOME/.claude/agents" "Claude Code agents"
+link_file "$DOTFILES/claude-code/skills" "$HOME/.claude/skills" "Claude Code skills"
 
 printf "\n"
 
