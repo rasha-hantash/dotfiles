@@ -20,7 +20,7 @@ leg_keys=("⌘ + j" "⌘ + m" "⌘ + p" "⌘ + ;")
 leg_labels=("claude" "terminal" "sessions" "exit")
 leg_count=${#leg_keys[@]}
 
-typeset -a win_indices win_names
+typeset -a win_indices win_names win_branches win_worktrees
 
 # ── Cached terminal dimensions (rebuilt on SIGWINCH) ──
 cols=$(tput cols)
@@ -42,14 +42,26 @@ trap 'tput cnorm; tput smam' EXIT
 refresh_windows() {
     win_indices=()
     win_names=()
+    win_branches=()
+    win_worktrees=()
     window_count=0
     local active_pos=0
-    while IFS='|' read -r idx active name; do
+    while IFS='|' read -r idx active name pane_path; do
         win_indices+=("$idx")
         win_names+=("$name")
         [[ $active == "1" ]] && active_pos=$window_count
+        # Get branch name and worktree status from the pane's working dir
+        local branch="" is_wt=""
+        if [[ -n $pane_path ]] && branch=$(git -C "$pane_path" rev-parse --abbrev-ref HEAD 2>/dev/null); then
+            local git_dir common_dir
+            git_dir=$(git -C "$pane_path" rev-parse --git-dir 2>/dev/null)
+            common_dir=$(git -C "$pane_path" rev-parse --git-common-dir 2>/dev/null)
+            [[ $git_dir != "$common_dir" ]] && is_wt="1"
+        fi
+        win_branches+=("$branch")
+        win_worktrees+=("$is_wt")
         ((window_count++))
-    done < <(tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_active}|#{window_name}')
+    done < <(tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_active}|#{window_name}|#{pane_current_path}')
     # Always sync to the tmux-active window. Each window runs its own
     # sidebar process, so after a window switch the new sidebar must
     # pick up whichever window is now active.
@@ -89,10 +101,17 @@ render() {
 
         if (( row < window_count )); then
             local name="${win_names[$((row+1))]}"
+            local branch="${win_branches[$((row+1))]}"
+            local is_wt="${win_worktrees[$((row+1))]}"
+            local branch_suffix=""
+            if [[ -n $branch ]]; then
+                branch_suffix=" ${C_SURFACE}${branch}${C_R}"
+                [[ -n $is_wt ]] && branch_suffix+=" 🌳"
+            fi
             if [[ $row -eq $selected ]]; then
-                buf+=" ${C_PEACH}●${C_R} ${C_PEACH}${C_BOLD}${name}${C_R}"
+                buf+=" ${C_PEACH}●${C_R} ${C_PEACH}${C_BOLD}${name}${C_R}${branch_suffix}"
             else
-                buf+=" ${C_OVERLAY}·${C_R} ${C_OVERLAY}${name}${C_R}"
+                buf+=" ${C_OVERLAY}·${C_R} ${C_OVERLAY}${name}${C_R}${branch_suffix}"
             fi
         fi
         # Erase from cursor to end of line (clears stale trailing chars)

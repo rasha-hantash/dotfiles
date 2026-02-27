@@ -72,6 +72,17 @@ cmd_start() {
     fi
 }
 
+get_branch_info() {
+    local pane_path="$1"
+    local branch="" git_dir="" common_dir=""
+    if [[ -n $pane_path ]] && branch=$(git -C "$pane_path" rev-parse --abbrev-ref HEAD 2>/dev/null); then
+        git_dir=$(git -C "$pane_path" rev-parse --git-dir 2>/dev/null)
+        common_dir=$(git -C "$pane_path" rev-parse --git-common-dir 2>/dev/null)
+        printf "%s" "$branch"
+        [[ $git_dir != "$common_dir" ]] && printf " 🌳"
+    fi
+}
+
 cmd_list() {
     if ! tmux has-session -t "$SESSION" 2>/dev/null; then
         printf "%sNo active ccs session.%s\n" "$C_OVERLAY" "$C_R"
@@ -80,11 +91,15 @@ cmd_list() {
 
     tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_name}|#{window_active}|#{pane_current_path}' | \
     while IFS='|' read -r _idx name active dir; do
+        local branch_info
+        branch_info=$(get_branch_info "$dir")
+        local branch_display=""
+        [[ -n $branch_info ]] && branch_display="  ${C_SURFACE}${branch_info}${C_R}"
         dir="${dir/#$HOME/\~}"
         if [ "$active" = "1" ]; then
-            printf "  %s●%s %s%s%s%s  %s%s%s\n" "$C_PEACH" "$C_R" "$C_PEACH" "$C_BOLD" "$name" "$C_R" "$C_SUBTEXT" "$dir" "$C_R"
+            printf "  %s●%s %s%s%s%s%s  %s%s%s\n" "$C_PEACH" "$C_R" "$C_PEACH" "$C_BOLD" "$name" "$C_R" "$branch_display" "$C_SUBTEXT" "$dir" "$C_R"
         else
-            printf "  %s·%s %s%s%s  %s%s%s\n" "$C_OVERLAY" "$C_R" "$C_OVERLAY" "$name" "$C_R" "$C_SURFACE" "$dir" "$C_R"
+            printf "  %s·%s %s%s%s%s  %s%s%s\n" "$C_OVERLAY" "$C_R" "$C_OVERLAY" "$name" "$C_R" "$branch_display" "$C_SURFACE" "$dir" "$C_R"
         fi
     done
 }
