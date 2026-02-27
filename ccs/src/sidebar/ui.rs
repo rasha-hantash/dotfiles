@@ -60,9 +60,6 @@ impl Widget for SidebarWidget<'_> {
                 format!("{window_count} session{plural}"),
                 Style::default().fg(colors::OVERLAY),
             ),
-            Span::styled(" \u{00b7} ", Style::default().fg(colors::OVERLAY)),
-            Span::styled("\u{2191}\u{2193}", Style::default().fg(colors::BLUE)),
-            Span::styled(" switch", Style::default().fg(colors::OVERLAY)),
         ]);
         if area.height > 0 {
             buf.set_line(area.x, area.y, &header, area.width);
@@ -82,7 +79,7 @@ impl Widget for SidebarWidget<'_> {
         let max_rows = window_count.max(LEGEND.len());
 
         // Calculate right column start (for legend)
-        let right_col = area.width.saturating_sub(18);
+        let right_col = area.width.saturating_sub(15);
 
         #[allow(clippy::needless_range_loop)] // indexes two parallel arrays of different lengths
         for row in 0..max_rows {
@@ -115,15 +112,14 @@ impl Widget for SidebarWidget<'_> {
                     )
                 };
 
-                let indicator = state_indicator(state, self.tick);
-
-                let line = Line::from(vec![
+                let mut spans = vec![
                     Span::raw(" "),
                     bullet,
                     Span::raw(" "),
                     Span::styled(&win.name, name_style),
-                    indicator,
-                ]);
+                ];
+                spans.extend(state_indicator(state, self.tick));
+                let line = Line::from(spans);
                 buf.set_line(area.x, y, &line, right_col);
             }
 
@@ -143,18 +139,26 @@ impl Widget for SidebarWidget<'_> {
 
 // ── Helpers ──
 
-fn state_indicator(state: WindowState, tick: u64) -> Span<'static> {
+const SPINNER: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+fn state_indicator(state: WindowState, tick: u64) -> Vec<Span<'static>> {
     match state {
         WindowState::Working => {
-            // Blink: peach dot for 5 ticks, dim dot for 5 ticks (0.5s each at 100ms/tick)
-            if tick % 10 < 5 {
-                Span::styled(" \u{25cf}", Style::default().fg(colors::PEACH))
-            } else {
-                Span::styled(" \u{00b7}", Style::default().fg(colors::SURFACE))
-            }
+            let frame = SPINNER[tick as usize % SPINNER.len()];
+            vec![Span::styled(format!(" {frame}"), Style::default().fg(colors::LAVENDER))]
         }
-        WindowState::Idle => Span::styled(" \u{2753}", Style::default()),
-        WindowState::Done => Span::styled(" \u{25cf}", Style::default().fg(colors::GREEN)),
-        WindowState::Fresh => Span::raw(""),
+        WindowState::Asking => status_label("waiting", colors::PEACH),
+        WindowState::Idle => status_label("ready", colors::GREEN),
+        WindowState::Done => status_label("done", colors::OVERLAY),
+        WindowState::Fresh => vec![],
     }
+}
+
+/// Render ` (label)` with dim parens and colored text.
+fn status_label(label: &'static str, color: ratatui::style::Color) -> Vec<Span<'static>> {
+    vec![
+        Span::styled(" (", Style::default().fg(colors::SURFACE)),
+        Span::styled(label, Style::default().fg(color)),
+        Span::styled(")", Style::default().fg(colors::SURFACE)),
+    ]
 }

@@ -270,13 +270,14 @@ pub fn list_pane_commands() -> Result<Vec<PaneInfo>, String> {
 /// Capture the last N lines from a specific pane.
 pub fn capture_pane(window_index: u32, lines: u32) -> Result<String, String> {
     let target = format!("{SESSION}:{window_index}.1");
+    let start = format!("-{lines}");
     tmux_stdout(&[
         "capture-pane",
         "-t",
         &target,
         "-p",
-        "-l",
-        &lines.to_string(),
+        "-S",
+        &start,
     ])
 }
 
