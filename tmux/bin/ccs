@@ -30,7 +30,8 @@ usage() {
     printf "  %scss start%s [name] [dir]    Start session manager\n" "$C_PEACH" "$C_R"
     printf "  %scss new%s   <name> [dir]    Add a new session tab\n" "$C_PEACH" "$C_R"
     printf "  %scss list%s                  List active sessions\n" "$C_PEACH" "$C_R"
-    printf "  %scss kill%s  [name]          Kill a session (or all)\n" "$C_PEACH" "$C_R"
+    printf "  %scss kill%s  <name>          Kill a single session tab\n" "$C_PEACH" "$C_R"
+    printf "  %scss all-kill%s              Kill all sessions\n" "$C_PEACH" "$C_R"
     printf "  %scss help%s                  Show this help\n" "$C_PEACH" "$C_R"
     printf "\n"
     printf "%sExamples:%s\n" "$C_BLUE" "$C_R"
@@ -111,26 +112,25 @@ cmd_list() {
 }
 
 cmd_kill() {
-    local name=$1
+    local name=${1:?"Usage: ccs kill <name>"}
 
     if ! tmux has-session -t "$SESSION" 2>/dev/null; then
         printf "%sNo active ccs session.%s\n" "$C_OVERLAY" "$C_R"
         return 1
     fi
 
-    if [ -z "$name" ]; then
-        printf "Kill all ccs sessions? (y/n) "
-        read -r confirm
-        if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
-            echo "Cancelled."
-            return 0
-        fi
-        tmux kill-session -t "$SESSION"
-        printf "Killed all sessions.\n"
-    else
-        tmux kill-window -t "$SESSION:$name"
-        printf "Killed: %s%s%s\n" "$C_PEACH" "$name" "$C_R"
+    tmux kill-window -t "$SESSION:$name"
+    printf "Killed: %s%s%s\n" "$C_PEACH" "$name" "$C_R"
+}
+
+cmd_kill_all() {
+    if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+        printf "%sNo active ccs session.%s\n" "$C_OVERLAY" "$C_R"
+        return 1
     fi
+
+    tmux kill-session -t "$SESSION"
+    printf "Killed all sessions.\n"
 }
 
 case "${1:-help}" in
@@ -138,6 +138,7 @@ case "${1:-help}" in
     new)    shift; cmd_new "$@" ;;
     list|ls) shift; cmd_list "$@" ;;
     kill)   shift; cmd_kill "$@" ;;
+    all-kill) cmd_kill_all ;;
     help|-h|--help) usage ;;
     *)
         printf "Unknown command: %s\n" "$1"
