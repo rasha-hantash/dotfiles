@@ -50,7 +50,12 @@ refresh_windows() {
         [[ $active == "1" ]] && active_pos=$window_count
         ((window_count++))
     done < <(tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_active}|#{window_name}')
+    # Always sync to the tmux-active window. Each window runs its own
+    # sidebar process, so after a window switch the new sidebar must
+    # pick up whichever window is now active.
     selected=$active_pos
+    # Clamp in case of race
+    (( selected >= window_count && window_count > 0 )) && selected=$(( window_count - 1 ))
 }
 
 render() {
@@ -110,7 +115,7 @@ render() {
 
 # ── Main loop ──
 tick=0
-REFRESH_EVERY=10  # refresh window list every 10 ticks (~1s)
+REFRESH_EVERY=2  # refresh window list every 2 ticks (~0.2s)
 
 while true; do
     if (( tick % REFRESH_EVERY == 0 )); then
@@ -119,31 +124,48 @@ while true; do
     render
 
     if read -rsk1 -t 0.1 key 2>/dev/null; then
+        # Sync selected to the active window before processing.
+        # Another sidebar instance may have just switched to this
+        # window, leaving our selected stale.
+        refresh_windows
+        local moved=0
+
+        # Process this key
         if [[ $key == $'\033' ]]; then
-            read -rsk2 -t 0 rest 2>/dev/null
+            read -rsk2 -t 0.1 rest 2>/dev/null
             case "$rest" in
-                '[A') # Up — keep focus in sidebar for multi-step navigation
-                    if (( selected > 0 )); then
-                        (( selected-- ))
-                        tmux select-window -t "$SESSION:${win_indices[$((selected+1))]}" \; select-pane -t :.3
-                    fi
-                    ;;
-                '[B') # Down — keep focus in sidebar for multi-step navigation
-                    if (( selected < window_count - 1 )); then
-                        (( selected++ ))
-                        tmux select-window -t "$SESSION:${win_indices[$((selected+1))]}" \; select-pane -t :.3
-                    fi
-                    ;;
+                '[A') (( selected > 0 )) && (( --selected, 1 )) && moved=1 ;;
+                '[B') (( selected < window_count - 1 )) && (( ++selected )) && moved=1 ;;
             esac
         elif [[ $key == 'q' ]]; then
             break
         elif [[ $key == $'\n' || $key == $'\r' ]]; then
-            # Enter — commit selection and jump to Claude pane
             tmux select-window -t "$SESSION:${win_indices[$((selected+1))]}" \; select-pane -t :.1
+            refresh_windows
+            tick=0
+            continue
         fi
-        # Immediate refresh after any key press
-        refresh_windows
-        tick=0
+
+        # Drain queued keys — batch rapid arrow presses into one move
+        while read -rsk1 -t 0 key 2>/dev/null; do
+            if [[ $key == $'\033' ]]; then
+                read -rsk2 -t 0.02 rest 2>/dev/null
+                case "$rest" in
+                    '[A') (( selected > 0 )) && (( --selected, 1 )) && moved=1 ;;
+                    '[B') (( selected < window_count - 1 )) && (( ++selected )) && moved=1 ;;
+                esac
+            fi
+        done
+
+        # Single tmux call after all queued keys are processed
+        if (( moved )); then
+            tmux select-window -t "$SESSION:${win_indices[$((selected+1))]}" \; select-pane -t :.3
+        fi
+
+        # Start tick at 1 so the next iteration won't immediately
+        # call refresh_windows (tick % REFRESH_EVERY != 0), giving
+        # the select-window command time to take effect.
+        tick=1
     fi
     ((tick++))
 done
