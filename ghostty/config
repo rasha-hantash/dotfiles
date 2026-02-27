@@ -1,3 +1,6 @@
+# Use Option as Meta (enables Alt+ shortcuts in Claude Code, vim, etc.)
+macos-option-as-alt = true
+
 # CCS pane focus shortcuts
 # Sends tmux prefix (Ctrl+A = \x01) followed by the pane key
 keybind = cmd+j=text:\x01f
