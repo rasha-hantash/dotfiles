@@ -8,15 +8,32 @@ window_count=0
 
 # ── Catppuccin Mocha ──
 C_PEACH=$'\033[38;2;250;179;135m'
-C_LAVENDER=$'\033[38;2;180;190;254m'
 C_BLUE=$'\033[38;2;137;180;250m'
-C_SUBTEXT=$'\033[38;2;166;173;200m'
 C_OVERLAY=$'\033[38;2;108;112;134m'
 C_SURFACE=$'\033[38;2;69;71;90m'
 C_BOLD=$'\033[1m'
 C_R=$'\033[0m'
+ESC=$'\033'
 
-typeset -a win_indices win_names win_dirs
+# ── Legend (static — declared once) ──
+leg_keys=("⌘ + j" "⌘ + m" "⌘ + p" "⌘ + ;")
+leg_labels=("claude" "terminal" "sessions" "exit")
+leg_count=${#leg_keys[@]}
+
+typeset -a win_indices win_names
+
+# ── Cached terminal dimensions (rebuilt on SIGWINCH) ──
+cols=$(tput cols)
+lines=$(tput lines)
+sep="${C_SURFACE}$(printf '%.0s─' {1..$cols})${C_R}"
+
+rebuild_geometry() {
+    cols=$(tput cols)
+    lines=$(tput lines)
+    sep="${C_SURFACE}$(printf '%.0s─' {1..$cols})${C_R}"
+}
+
+trap 'rebuild_geometry' WINCH
 
 tput civis
 tput rmam
@@ -25,74 +42,80 @@ trap 'tput cnorm; tput smam' EXIT
 refresh_windows() {
     win_indices=()
     win_names=()
-    win_dirs=()
     window_count=0
     local active_pos=0
-    while IFS='|' read -r idx active name dir; do
+    while IFS='|' read -r idx active name; do
         win_indices+=("$idx")
         win_names+=("$name")
-        win_dirs+=("${dir/#$HOME/~}")
         [[ $active == "1" ]] && active_pos=$window_count
         ((window_count++))
-    done < <(tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_active}|#{window_name}|#{pane_current_path}')
+    done < <(tmux list-windows -t "$SESSION" -F '#{window_index}|#{window_active}|#{window_name}')
     selected=$active_pos
 }
 
 render() {
-    local cols=$(tput cols)
-    local lines=$(tput lines)
-    local sep="${C_SURFACE}$(printf '%.0s─' {1..$cols})${C_R}"
+    local right_col=$(( cols - 18 ))
+    (( right_col < 0 )) && right_col=0
 
-    tput cup 0 0
+    local max_rows=$(( window_count > leg_count ? window_count : leg_count ))
+    (( max_rows < 1 )) && max_rows=1
+
+    # Build entire frame into buffer, print in one write (no flicker)
+    local buf=""
 
     # ── Header ──
-    local plural="$([[ $window_count -ne 1 ]] && echo 's')"
-    printf " ${C_LAVENDER}${C_BOLD}%d session%s${C_R} ${C_OVERLAY}·${C_R} ${C_BLUE}↑↓${C_R}${C_OVERLAY} switch${C_R}  ${C_BLUE}⌘J${C_R}${C_OVERLAY} claude${C_R}  ${C_BLUE}⌘P${C_R}${C_OVERLAY} here${C_R}  ${C_BLUE}⌘M${C_R}${C_OVERLAY} term${C_R}\033[K\n" \
-        "$window_count" "$plural"
-    printf '%s\033[K\n' "$sep"
+    local plural=""
+    [[ $window_count -ne 1 ]] && plural="s"
+    buf+="${ESC}[1;1H"
+    buf+=" ${C_OVERLAY}${window_count} session${plural}${C_R} ${C_OVERLAY}·${C_R} ${C_BLUE}↑↓${C_R}${C_OVERLAY} switch${C_R}${ESC}[K"
 
-    # ── Session list ──
-    if (( window_count == 0 )); then
-        printf " ${C_OVERLAY}no sessions${C_R}\033[K\n"
-    else
-        local i=0
-        while (( i < window_count )); do
-            local name="${win_names[$((i+1))]}"
-            local dir="${win_dirs[$((i+1))]}"
+    # ── Separator ──
+    buf+="${ESC}[2;1H"
+    buf+="${sep}${ESC}[K"
 
-            if [[ $i -eq $selected ]]; then
-                printf " ${C_PEACH}●${C_R} ${C_PEACH}${C_BOLD}%s${C_R}" "$name"
+    # ── Two-column body: sessions (left) + legend (right) ──
+    local row=0
+    while (( row < max_rows )); do
+        local line_num=$(( row + 2 ))
+        local ansi_row=$(( line_num + 1 ))
+
+        # Position at left edge, overwrite session content in-place
+        buf+="${ESC}[${ansi_row};1H"
+
+        if (( row < window_count )); then
+            local name="${win_names[$((row+1))]}"
+            if [[ $row -eq $selected ]]; then
+                buf+=" ${C_PEACH}●${C_R} ${C_PEACH}${C_BOLD}${name}${C_R}"
             else
-                printf " ${C_OVERLAY}·${C_R} ${C_OVERLAY}%s${C_R}" "$name"
+                buf+=" ${C_OVERLAY}·${C_R} ${C_OVERLAY}${name}${C_R}"
             fi
+        fi
+        # Erase from cursor to end of line (clears stale trailing chars)
+        buf+="${ESC}[K"
 
-            # Show directory if space permits
-            if (( cols > 22 )); then
-                local max_dir=$(( cols - ${#name} - 5 ))
-                if (( max_dir > 4 && ${#dir} > 0 )); then
-                    local short_dir="$dir"
-                    if (( ${#short_dir} > max_dir )); then
-                        short_dir="…${short_dir: -$((max_dir - 1))}"
-                    fi
-                    if [[ $i -eq $selected ]]; then
-                        printf " ${C_SUBTEXT}%s${C_R}" "$short_dir"
-                    else
-                        printf " ${C_SURFACE}%s${C_R}" "$short_dir"
-                    fi
-                fi
-            fi
+        # Right column: legend (overwrites area we just cleared)
+        if (( row < leg_count )); then
+            buf+="${ESC}[${ansi_row};$((right_col + 1))H"
+            buf+="${C_BLUE}${leg_keys[$((row+1))]}${C_R}  ${C_OVERLAY}${leg_labels[$((row+1))]}${C_R}${ESC}[K"
+        fi
 
-            printf '\033[K\n'
-            ((i++))
-        done
-    fi
+        ((row++))
+    done
 
     # ── Clear to bottom ──
-    printf '\033[J'
+    buf+="${ESC}[$(( max_rows + 3 ));1H${ESC}[J"
+
+    printf '%s' "$buf"
 }
 
+# ── Main loop ──
+tick=0
+REFRESH_EVERY=10  # refresh window list every 10 ticks (~1s)
+
 while true; do
-    refresh_windows
+    if (( tick % REFRESH_EVERY == 0 )); then
+        refresh_windows
+    fi
     render
 
     if read -rsk1 -t 0.1 key 2>/dev/null; then
@@ -118,5 +141,9 @@ while true; do
             # Enter — commit selection and jump to Claude pane
             tmux select-window -t "$SESSION:${win_indices[$((selected+1))]}" \; select-pane -t :.1
         fi
+        # Immediate refresh after any key press
+        refresh_windows
+        tick=0
     fi
+    ((tick++))
 done
