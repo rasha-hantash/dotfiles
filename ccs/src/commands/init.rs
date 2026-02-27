@@ -26,12 +26,13 @@ fn ccs_bin_path() -> String {
 }
 
 /// Check if CCS hooks are already installed in settings.json.
+/// Checks for the PreToolUse AskUserQuestion hook — if missing, hooks need updating.
 pub fn hooks_installed(path: &Path) -> bool {
     let content = match fs::read_to_string(path) {
         Ok(c) => c,
         Err(_) => return false,
     };
-    content.contains("ccs hook")
+    content.contains("ccs hook ask")
 }
 
 /// Install CCS hooks into settings.json.
@@ -40,13 +41,28 @@ pub fn install_hooks(path: &Path) -> Result<(), String> {
     install_hooks_with_bin(path, &ccs_bin_path())
 }
 
-fn install_hooks_with_bin(path: &Path, bin: &str) -> Result<(), String> {
+/// Check if a hook array already contains an entry whose command includes `needle`.
+fn has_hook_command(arr: &[Value], needle: &str) -> bool {
+    arr.iter().any(|entry| {
+        entry["hooks"]
+            .as_array()
+            .map(|hooks| {
+                hooks.iter().any(|h| {
+                    h["command"]
+                        .as_str()
+                        .map(|c| c.contains(needle))
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false)
+    })
+}
 
+fn install_hooks_with_bin(path: &Path, bin: &str) -> Result<(), String> {
     let mut settings: Value = if path.exists() {
         let content = fs::read_to_string(path).map_err(|e| format!("read settings: {e}"))?;
         serde_json::from_str(&content).map_err(|e| format!("parse settings: {e}"))?
     } else {
-        // Create minimal settings structure
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|e| format!("create settings dir: {e}"))?;
         }
@@ -59,47 +75,35 @@ fn install_hooks_with_bin(path: &Path, bin: &str) -> Result<(), String> {
         .entry("hooks")
         .or_insert_with(|| serde_json::json!({}));
 
-    let hooks_obj = hooks
-        .as_object_mut()
-        .ok_or("hooks is not an object")?;
+    let hooks_obj = hooks.as_object_mut().ok_or("hooks is not an object")?;
 
-    // UserPromptSubmit hook
-    let user_prompt_entry = serde_json::json!({
-        "matcher": "*",
-        "hooks": [{
-            "type": "command",
-            "command": format!("{bin} hook user-prompt"),
-            "async": true,
-            "timeout": 5
-        }]
-    });
+    // Each entry: (hook_type, matcher, ccs_command)
+    let entries: &[(&str, &str, &str)] = &[
+        ("UserPromptSubmit", "*", "hook user-prompt"),
+        ("Stop", "*", "hook stop"),
+        ("PreToolUse", "AskUserQuestion", "hook ask"),
+        ("PostToolUse", "AskUserQuestion", "hook ask-done"),
+    ];
 
-    let user_prompt_arr = hooks_obj
-        .entry("UserPromptSubmit")
-        .or_insert_with(|| serde_json::json!([]));
-    user_prompt_arr
-        .as_array_mut()
-        .ok_or("UserPromptSubmit is not an array")?
-        .push(user_prompt_entry);
+    for &(hook_type, matcher, cmd) in entries {
+        let arr = hooks_obj
+            .entry(hook_type)
+            .or_insert_with(|| serde_json::json!([]));
+        let arr = arr.as_array_mut().ok_or(format!("{hook_type} is not an array"))?;
 
-    // Stop hook
-    let stop_entry = serde_json::json!({
-        "matcher": "*",
-        "hooks": [{
-            "type": "command",
-            "command": format!("{bin} hook stop"),
-            "async": true,
-            "timeout": 5
-        }]
-    });
-
-    let stop_arr = hooks_obj
-        .entry("Stop")
-        .or_insert_with(|| serde_json::json!([]));
-    stop_arr
-        .as_array_mut()
-        .ok_or("Stop is not an array")?
-        .push(stop_entry);
+        let full_cmd = format!("{bin} {cmd}");
+        if !has_hook_command(arr, &full_cmd) {
+            arr.push(serde_json::json!({
+                "matcher": matcher,
+                "hooks": [{
+                    "type": "command",
+                    "command": full_cmd,
+                    "async": true,
+                    "timeout": 5
+                }]
+            }));
+        }
+    }
 
     let output =
         serde_json::to_string_pretty(&settings).map_err(|e| format!("serialize settings: {e}"))?;
@@ -120,8 +124,10 @@ pub fn run() -> Result<(), String> {
 
     install_hooks(&path)?;
     println!("Installed CCS hooks in ~/.claude/settings.json");
-    println!("  UserPromptSubmit → ccs hook user-prompt");
-    println!("  Stop             → ccs hook stop");
+    println!("  UserPromptSubmit              → ccs hook user-prompt");
+    println!("  Stop                          → ccs hook stop");
+    println!("  PreToolUse(AskUserQuestion)   → ccs hook ask");
+    println!("  PostToolUse(AskUserQuestion)  → ccs hook ask-done");
 
     Ok(())
 }
@@ -147,11 +153,25 @@ mod tests {
     }
 
     #[test]
+    fn test_hooks_installed_only_old_hooks() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        // Old installation — has "ccs hook stop" but not "ccs hook ask"
+        fs::write(&path, r#"{"hooks":{"Stop":[{"hooks":[{"command":"ccs hook stop"}]}]}}"#)
+            .unwrap();
+
+        assert!(!hooks_installed(&path));
+    }
+
+    #[test]
     fn test_hooks_installed_present() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
-        fs::write(&path, r#"{"hooks":{"Stop":[{"hooks":[{"command":"ccs hook stop"}]}]}}"#)
-            .unwrap();
+        fs::write(
+            &path,
+            r#"{"hooks":{"PreToolUse":[{"hooks":[{"command":"ccs hook ask"}]}]}}"#,
+        )
+        .unwrap();
 
         assert!(hooks_installed(&path));
     }
@@ -167,12 +187,19 @@ mod tests {
         let content = fs::read_to_string(&path).unwrap();
         assert!(content.contains("ccs hook user-prompt"));
         assert!(content.contains("ccs hook stop"));
+        assert!(content.contains("ccs hook ask\""));
+        assert!(content.contains("ccs hook ask-done"));
 
-        // Verify JSON is valid
         let parsed: Value = serde_json::from_str(&content).unwrap();
         let hooks = parsed["hooks"].as_object().unwrap();
         assert_eq!(hooks["UserPromptSubmit"].as_array().unwrap().len(), 1);
         assert_eq!(hooks["Stop"].as_array().unwrap().len(), 1);
+        assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 1);
+        assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 1);
+
+        // PreToolUse should use AskUserQuestion matcher
+        let pre = &hooks["PreToolUse"].as_array().unwrap()[0];
+        assert_eq!(pre["matcher"].as_str().unwrap(), "AskUserQuestion");
     }
 
     #[test]
@@ -204,6 +231,26 @@ mod tests {
     }
 
     #[test]
+    fn test_install_hooks_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, "{}").unwrap();
+
+        install_hooks_with_bin(&path, "ccs").unwrap();
+        install_hooks_with_bin(&path, "ccs").unwrap();
+
+        let content = fs::read_to_string(&path).unwrap();
+        let parsed: Value = serde_json::from_str(&content).unwrap();
+        let hooks = parsed["hooks"].as_object().unwrap();
+
+        // Each hook type should still have exactly 1 CCS entry
+        assert_eq!(hooks["UserPromptSubmit"].as_array().unwrap().len(), 1);
+        assert_eq!(hooks["Stop"].as_array().unwrap().len(), 1);
+        assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 1);
+        assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
     fn test_install_hooks_creates_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("subdir").join("settings.json");
@@ -212,6 +259,31 @@ mod tests {
 
         assert!(path.exists());
         let content = fs::read_to_string(&path).unwrap();
-        assert!(content.contains("ccs hook"));
+        assert!(content.contains("ccs hook ask"));
+    }
+
+    #[test]
+    fn test_install_hooks_upgrades_old_install() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        // Simulate old installation with only UserPromptSubmit + Stop
+        fs::write(
+            &path,
+            r#"{"hooks":{"UserPromptSubmit":[{"matcher":"*","hooks":[{"type":"command","command":"ccs hook user-prompt","async":true,"timeout":5}]}],"Stop":[{"matcher":"*","hooks":[{"type":"command","command":"ccs hook stop","async":true,"timeout":5}]}]}}"#,
+        )
+        .unwrap();
+
+        install_hooks_with_bin(&path, "ccs").unwrap();
+
+        let content = fs::read_to_string(&path).unwrap();
+        let parsed: Value = serde_json::from_str(&content).unwrap();
+        let hooks = parsed["hooks"].as_object().unwrap();
+
+        // Old hooks should not be duplicated
+        assert_eq!(hooks["UserPromptSubmit"].as_array().unwrap().len(), 1);
+        assert_eq!(hooks["Stop"].as_array().unwrap().len(), 1);
+        // New hooks should be added
+        assert_eq!(hooks["PreToolUse"].as_array().unwrap().len(), 1);
+        assert_eq!(hooks["PostToolUse"].as_array().unwrap().len(), 1);
     }
 }

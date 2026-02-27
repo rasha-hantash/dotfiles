@@ -46,4 +46,8 @@ pub enum HookEvent {
     UserPrompt,
     /// Claude finished responding (Stop hook)
     Stop,
+    /// Claude is about to show an AskUserQuestion (PreToolUse hook)
+    Ask,
+    /// User answered an AskUserQuestion (PostToolUse hook)
+    AskDone,
 }
