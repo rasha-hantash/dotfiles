@@ -236,9 +236,11 @@ pub fn select_window(index: u32) -> Result<(), String> {
 pub struct PaneInfo {
     pub window_index: u32,
     pub command: String,
+    /// Unique tmux pane identifier (e.g. "%0", "%3").
+    pub pane_id: String,
 }
 
-/// Get the foreground command of pane .1 in every window.
+/// Get the foreground command and pane ID of pane .1 in every window.
 pub fn list_pane_commands() -> Result<Vec<PaneInfo>, String> {
     let out = tmux_stdout(&[
         "list-panes",
@@ -246,13 +248,13 @@ pub fn list_pane_commands() -> Result<Vec<PaneInfo>, String> {
         "-t",
         SESSION,
         "-F",
-        "#{window_index}|#{pane_index}|#{pane_current_command}",
+        "#{window_index}|#{pane_index}|#{pane_current_command}|#{pane_id}",
     ])?;
 
     let mut panes = Vec::new();
     for line in out.lines() {
-        let parts: Vec<&str> = line.splitn(3, '|').collect();
-        if parts.len() < 3 {
+        let parts: Vec<&str> = line.splitn(4, '|').collect();
+        if parts.len() < 4 {
             continue;
         }
         // Only pane index 1 (the Claude pane)
@@ -262,23 +264,10 @@ pub fn list_pane_commands() -> Result<Vec<PaneInfo>, String> {
         panes.push(PaneInfo {
             window_index: parts[0].parse().unwrap_or(0),
             command: parts[2].to_string(),
+            pane_id: parts[3].to_string(),
         });
     }
     Ok(panes)
-}
-
-/// Capture the last N lines from a specific pane.
-pub fn capture_pane(window_index: u32, lines: u32) -> Result<String, String> {
-    let target = format!("{SESSION}:{window_index}.1");
-    let start = format!("-{lines}");
-    tmux_stdout(&[
-        "capture-pane",
-        "-t",
-        &target,
-        "-p",
-        "-S",
-        &start,
-    ])
 }
 
 pub fn select_window_sidebar(index: u32) -> Result<(), String> {

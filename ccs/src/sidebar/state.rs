@@ -2,8 +2,9 @@
 //
 // Reads CCS event files written by Claude Code hooks to determine sidebar state.
 // Each Claude session has an event file at ~/.ccs/events/{session_id}.jsonl.
-// The sidebar matches events to tmux windows by comparing the event's `cwd`
-// to each window's `pane_path`.
+// The sidebar matches events to tmux windows by comparing the event's `pane_id`
+// (from $TMUX_PANE) to each window's tmux pane ID. This correctly handles
+// multiple sessions in the same working directory.
 
 use std::collections::HashMap;
 use std::fs;
@@ -33,7 +34,11 @@ pub enum WindowState {
 #[derive(Deserialize)]
 struct EventEntry {
     state: String,
+    #[allow(dead_code)]
     cwd: String,
+    /// Tmux pane ID (e.g. "%0") — used to match events to windows.
+    #[serde(default)]
+    pane_id: String,
     #[allow(dead_code)]
     ts: u64,
 }
@@ -85,8 +90,8 @@ fn read_last_line(path: &Path) -> Option<String> {
 }
 
 /// Load the latest event from each event file in the events directory.
-/// Returns a vec of (cwd, state, mtime) for matching against windows.
-fn load_latest_events(dir: &Path) -> Vec<(String, String, std::time::SystemTime)> {
+/// Returns a vec of (pane_id, state) for matching against windows.
+fn load_latest_events(dir: &Path) -> Vec<(String, String)> {
     let entries = match fs::read_dir(dir) {
         Ok(e) => e,
         Err(_) => return Vec::new(),
@@ -98,10 +103,11 @@ fn load_latest_events(dir: &Path) -> Vec<(String, String, std::time::SystemTime)
         if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
             continue;
         }
-        let mtime = entry.metadata().ok().and_then(|m| m.modified().ok());
         if let Some(line) = read_last_line(&path) {
             if let Ok(event) = serde_json::from_str::<EventEntry>(&line) {
-                results.push((event.cwd, event.state, mtime.unwrap_or(std::time::UNIX_EPOCH)));
+                if !event.pane_id.is_empty() {
+                    results.push((event.pane_id, event.state));
+                }
             }
         }
     }
@@ -131,11 +137,16 @@ impl StateDetector {
     pub fn detect(&mut self, windows: &[tmux::WindowInfo]) -> HashMap<u32, WindowState> {
         let mut states = HashMap::new();
 
-        // Get foreground commands for all panes in one tmux call
-        let pane_cmds: HashMap<u32, String> = tmux::list_pane_commands()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|p| (p.window_index, p.command))
+        // Get foreground commands + pane IDs for all panes in one tmux call
+        let pane_infos: Vec<tmux::PaneInfo> =
+            tmux::list_pane_commands().unwrap_or_default();
+        let pane_cmds: HashMap<u32, &str> = pane_infos
+            .iter()
+            .map(|p| (p.window_index, p.command.as_str()))
+            .collect();
+        let pane_ids: HashMap<u32, &str> = pane_infos
+            .iter()
+            .map(|p| (p.window_index, p.pane_id.as_str()))
             .collect();
 
         // Load all latest events once per detect cycle
@@ -144,7 +155,7 @@ impl StateDetector {
         for win in windows {
             let cmd = pane_cmds
                 .get(&win.index)
-                .map(String::as_str)
+                .copied()
                 .unwrap_or("zsh");
 
             // Shell prompt means Claude exited
@@ -153,14 +164,14 @@ impl StateDetector {
                 continue;
             }
 
-            // Find the most recently modified event file whose cwd matches this window
+            // Match event by pane_id — each tmux pane has a unique ID like "%0"
+            let win_pane_id = pane_ids.get(&win.index).copied().unwrap_or("");
             let matched = events
                 .iter()
-                .filter(|(cwd, _, _)| cwd == &win.pane_path)
-                .max_by_key(|(_, _, mtime)| *mtime);
+                .find(|(pane_id, _)| pane_id == win_pane_id);
 
             let state = match matched {
-                Some((_, state_str, _)) => state_from_str(state_str),
+                Some((_, state_str)) => state_from_str(state_str),
                 None => WindowState::Fresh,
             };
 
@@ -221,20 +232,54 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
 
         let mut f1 = fs::File::create(dir.path().join("session-a.jsonl")).unwrap();
-        writeln!(f1, r#"{{"state":"working","cwd":"/project-a","ts":1000}}"#).unwrap();
-        writeln!(f1, r#"{{"state":"idle","cwd":"/project-a","ts":1001}}"#).unwrap();
+        writeln!(f1, r#"{{"state":"working","cwd":"/project-a","pane_id":"%0","ts":1000}}"#).unwrap();
+        writeln!(f1, r#"{{"state":"idle","cwd":"/project-a","pane_id":"%0","ts":1001}}"#).unwrap();
 
         let mut f2 = fs::File::create(dir.path().join("session-b.jsonl")).unwrap();
-        writeln!(f2, r#"{{"state":"asking","cwd":"/project-b","ts":2000}}"#).unwrap();
+        writeln!(f2, r#"{{"state":"asking","cwd":"/project-b","pane_id":"%3","ts":2000}}"#).unwrap();
 
         let events = load_latest_events(dir.path());
         assert_eq!(events.len(), 2);
 
-        let a = events.iter().find(|(cwd, _, _)| cwd == "/project-a").unwrap();
+        let a = events.iter().find(|(pane_id, _)| pane_id == "%0").unwrap();
         assert_eq!(a.1, "idle");
 
-        let b = events.iter().find(|(cwd, _, _)| cwd == "/project-b").unwrap();
+        let b = events.iter().find(|(pane_id, _)| pane_id == "%3").unwrap();
         assert_eq!(b.1, "asking");
+    }
+
+    #[test]
+    fn test_same_cwd_different_panes() {
+        let dir = tempfile::tempdir().unwrap();
+
+        // Two sessions in the same cwd but different panes
+        let mut f1 = fs::File::create(dir.path().join("session-a.jsonl")).unwrap();
+        writeln!(f1, r#"{{"state":"working","cwd":"/same/dir","pane_id":"%0","ts":1000}}"#).unwrap();
+
+        let mut f2 = fs::File::create(dir.path().join("session-b.jsonl")).unwrap();
+        writeln!(f2, r#"{{"state":"idle","cwd":"/same/dir","pane_id":"%3","ts":1000}}"#).unwrap();
+
+        let events = load_latest_events(dir.path());
+        assert_eq!(events.len(), 2);
+
+        // Each should match to its own pane, not cross-contaminate
+        let a = events.iter().find(|(pane_id, _)| pane_id == "%0").unwrap();
+        assert_eq!(a.1, "working");
+
+        let b = events.iter().find(|(pane_id, _)| pane_id == "%3").unwrap();
+        assert_eq!(b.1, "idle");
+    }
+
+    #[test]
+    fn test_events_without_pane_id_ignored() {
+        let dir = tempfile::tempdir().unwrap();
+
+        // Old-format event without pane_id should be skipped
+        let mut f = fs::File::create(dir.path().join("old-session.jsonl")).unwrap();
+        writeln!(f, r#"{{"state":"working","cwd":"/project","ts":1000}}"#).unwrap();
+
+        let events = load_latest_events(dir.path());
+        assert!(events.is_empty());
     }
 
     #[test]

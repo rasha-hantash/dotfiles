@@ -77,7 +77,7 @@ fn determine_stop_state(transcript_path: &str) -> &'static str {
 }
 
 /// Append a state event to the session's event file.
-fn write_event(session_id: &str, cwd: &str, state: &str) -> Result<(), String> {
+fn write_event(session_id: &str, cwd: &str, pane_id: &str, state: &str) -> Result<(), String> {
     let dir = events_dir();
     fs::create_dir_all(&dir).map_err(|e| format!("create events dir: {e}"))?;
 
@@ -93,7 +93,7 @@ fn write_event(session_id: &str, cwd: &str, state: &str) -> Result<(), String> {
         .unwrap_or_default()
         .as_secs();
 
-    let line = format!(r#"{{"state":"{state}","cwd":"{cwd}","ts":{ts}}}"#);
+    let line = format!(r#"{{"state":"{state}","cwd":"{cwd}","pane_id":"{pane_id}","ts":{ts}}}"#);
     writeln!(file, "{line}").map_err(|e| format!("write event: {e}"))?;
 
     Ok(())
@@ -118,7 +118,11 @@ pub fn run(event: HookEvent) -> Result<(), String> {
         },
     };
 
-    write_event(&hook.session_id, &hook.cwd, state)
+    // $TMUX_PANE uniquely identifies which tmux pane Claude is running in.
+    // This lets the sidebar distinguish sessions even when they share a cwd.
+    let pane_id = std::env::var("TMUX_PANE").unwrap_or_default();
+
+    write_event(&hook.session_id, &hook.cwd, &pane_id, state)
 }
 
 // ── Tests ──
