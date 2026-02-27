@@ -70,6 +70,13 @@ else
     missing=1
 fi
 
+if command -v cargo &>/dev/null; then
+    ok "cargo $(cargo --version | awk '{print $2}')"
+else
+    err "cargo not found — install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+    missing=1
+fi
+
 if command -v claude &>/dev/null; then
     ok "claude CLI found"
 else
@@ -101,14 +108,31 @@ link_file "$DOTFILES/claude-code/keybindings.json" "$HOME/.claude/keybindings.js
 
 printf "\n"
 
-# ── Install CCS scripts to PATH ──
-info "Installing CCS scripts..."
+# ── Build CCS binary ──
+info "Building CCS..."
+
+if command -v cargo &>/dev/null; then
+    (cd "$DOTFILES/ccs" && cargo build --release 2>&1) && ok "ccs binary built" || {
+        err "cargo build failed"
+        exit 1
+    }
+else
+    err "cargo not found — skipping build"
+    exit 1
+fi
 
 BIN_DIR="$HOME/.local/bin"
 mkdir -p "$BIN_DIR"
 
-link_file "$DOTFILES/tmux/bin/ccs" "$BIN_DIR/ccs" "ccs"
-link_file "$DOTFILES/tmux/bin/tmux-sidebar" "$BIN_DIR/tmux-sidebar" "tmux-sidebar"
+link_file "$DOTFILES/ccs/target/release/ccs" "$BIN_DIR/ccs" "ccs"
+
+# Clean up old script symlinks if they exist
+for old_link in "$BIN_DIR/tmux-sidebar"; do
+    if [ -L "$old_link" ]; then
+        rm "$old_link"
+        ok "Removed old symlink: $(basename "$old_link")"
+    fi
+done
 
 # Check if ~/.local/bin is in PATH
 if ! echo "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
