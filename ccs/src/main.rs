@@ -17,6 +17,8 @@ fn main() {
         Command::AllKill => commands::kill::run_all(),
         Command::Resume => commands::resume::run(),
         Command::Sidebar => sidebar::app::run(),
+        Command::Hook { event } => commands::hook::run(event),
+        Command::Init => commands::init::run(),
     };
 
     if let Err(e) = result {

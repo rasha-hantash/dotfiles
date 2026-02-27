@@ -1,5 +1,4 @@
 use crate::colors::*;
-use crate::sidebar::state;
 use crate::tmux;
 
 // ── Helpers ──
@@ -53,9 +52,6 @@ pub fn run(name: &str, dir: Option<&str>) -> Result<(), String> {
             ));
         }
 
-        // No existing session → any state files in /tmp/ccs-state/ are stale
-        // from a dead session. Clear them so new windows don't show false "(ready)".
-        state::clear_all_state();
         tmux::new_session(name, &dir, &sidebar_cmd)?;
     }
 
