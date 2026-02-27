@@ -35,7 +35,7 @@ ccs start myproject ~/code/myproject    # Start CCS with a session
 ccs new backend ~/code/backend          # Add another session tab
 ccs list                                # List active sessions
 ccs kill backend                        # Kill a specific session
-ccs kill                                # Kill all sessions
+ccs all-kill                            # Kill all sessions
 ```
 
 To re-attach after detaching: `ccs start` (detects the existing session and re-attaches).
