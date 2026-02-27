@@ -1,3 +1,7 @@
+# Catppuccin Mocha base — matches tmux unfocused bg so borders disappear
+background = 1e1e2e
+foreground = cdd6f4
+
 # Use Option as Meta (enables Alt+ shortcuts in Claude Code, vim, etc.)
 macos-option-as-alt = true
 
