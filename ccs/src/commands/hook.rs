@@ -4,7 +4,7 @@
 // Reads JSON from stdin, determines state, appends to ~/.ccs/events/{session_id}.jsonl.
 
 use std::fs::{self, OpenOptions};
-use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
 use serde::Deserialize;
@@ -28,8 +28,13 @@ fn events_dir() -> PathBuf {
 }
 
 /// Determine whether the Stop event should produce "idle" or "asking".
-/// Reads the tail of the transcript file and checks if the last assistant
-/// message contains an AskUserQuestion tool_use.
+///
+/// Reads the tail of the transcript and compares the position of the last
+/// `"AskUserQuestion"` vs the last `"tool_result"`. If AskUserQuestion
+/// appears later, the question hasn't been answered yet → "asking".
+///
+/// This approach avoids depending on JSON formatting (compact vs spaced)
+/// by doing simple substring position comparisons on the raw content.
 fn determine_stop_state(transcript_path: &str) -> &'static str {
     let file = match fs::File::open(transcript_path) {
         Ok(f) => f,
@@ -48,30 +53,19 @@ fn determine_stop_state(transcript_path: &str) -> &'static str {
         return "idle";
     }
 
-    // If we seeked mid-line, skip the partial first line
-    if tail_start > 0 {
-        let mut discard = String::new();
-        let _ = reader.read_line(&mut discard);
+    let mut tail = String::new();
+    if reader.read_to_string(&mut tail).is_err() {
+        return "idle";
     }
 
-    // Scan for the last line containing "type":"assistant"
-    let mut last_assistant_line: Option<String> = None;
-    let mut line = String::new();
-    loop {
-        line.clear();
-        match reader.read_line(&mut line) {
-            Ok(0) => break,
-            Ok(_) => {
-                if line.contains(r#""type":"assistant""#) {
-                    last_assistant_line = Some(line.clone());
-                }
-            }
-            Err(_) => break,
-        }
-    }
+    // Compare positions: if AskUserQuestion appears after the last tool_result,
+    // the question is still pending (unanswered).
+    let last_ask = tail.rfind("\"AskUserQuestion\"");
+    let last_result = tail.rfind("\"tool_result\"");
 
-    match last_assistant_line {
-        Some(l) if l.contains(r#""name":"AskUserQuestion""#) => "asking",
+    match (last_ask, last_result) {
+        (Some(ask_pos), Some(result_pos)) if ask_pos > result_pos => "asking",
+        (Some(_), None) => "asking",
         _ => "idle",
     }
 }
@@ -144,12 +138,25 @@ mod tests {
     }
 
     #[test]
-    fn test_determine_stop_state_asking() {
+    fn test_determine_stop_state_asking_compact() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("transcript.jsonl");
         let mut f = fs::File::create(&path).unwrap();
+        // Compact JSON (no spaces after colons)
         writeln!(f, r#"{{"type":"user","message":{{"role":"user","content":"hi"}}}}"#).unwrap();
         writeln!(f, r#"{{"type":"assistant","message":{{"role":"assistant","content":[{{"type":"tool_use","name":"AskUserQuestion"}}]}}}}"#).unwrap();
+
+        assert_eq!(determine_stop_state(path.to_str().unwrap()), "asking");
+    }
+
+    #[test]
+    fn test_determine_stop_state_asking_spaced() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("transcript.jsonl");
+        let mut f = fs::File::create(&path).unwrap();
+        // Spaced JSON (spaces after colons) — matches real Claude transcript format
+        writeln!(f, r#"{{"type": "user", "message": {{"role": "user", "content": "hi"}}}}"#).unwrap();
+        writeln!(f, r#"{{"type": "assistant", "message": {{"role": "assistant", "content": [{{"type": "tool_use", "name": "AskUserQuestion"}}]}}}}"#).unwrap();
 
         assert_eq!(determine_stop_state(path.to_str().unwrap()), "asking");
     }
@@ -173,8 +180,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let events = dir.path().join("events");
 
-        // Temporarily override HOME to use temp dir
-        // We test the write_event internals directly instead
         fs::create_dir_all(&events).unwrap();
         let path = events.join("test-session.jsonl");
 
@@ -191,14 +196,27 @@ mod tests {
     }
 
     #[test]
-    fn test_determine_stop_state_ask_then_text() {
+    fn test_determine_stop_state_ask_then_answered() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("transcript.jsonl");
         let mut f = fs::File::create(&path).unwrap();
-        // AskUserQuestion followed by a text-only assistant message → idle
-        writeln!(f, r#"{{"type":"assistant","message":{{"role":"assistant","content":[{{"type":"tool_use","name":"AskUserQuestion"}}]}}}}"#).unwrap();
-        writeln!(f, r#"{{"type":"user","message":{{"role":"user","content":[{{"type":"tool_result"}}]}}}}"#).unwrap();
-        writeln!(f, r#"{{"type":"assistant","message":{{"role":"assistant","content":[{{"type":"text","text":"ok"}}]}}}}"#).unwrap();
+        // AskUserQuestion followed by tool_result (user answered) → idle
+        writeln!(f, r#"{{"type":"assistant","content":[{{"type":"tool_use","name":"AskUserQuestion"}}]}}"#).unwrap();
+        writeln!(f, r#"{{"type":"user","content":[{{"type":"tool_result","tool_use_id":"123"}}]}}"#).unwrap();
+        writeln!(f, r#"{{"type":"assistant","content":[{{"type":"text","text":"ok"}}]}}"#).unwrap();
+
+        assert_eq!(determine_stop_state(path.to_str().unwrap()), "idle");
+    }
+
+    #[test]
+    fn test_determine_stop_state_no_ask_in_transcript() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("transcript.jsonl");
+        let mut f = fs::File::create(&path).unwrap();
+        // Normal conversation with tool use but no AskUserQuestion
+        writeln!(f, r#"{{"type":"assistant","content":[{{"type":"tool_use","name":"Bash"}}]}}"#).unwrap();
+        writeln!(f, r#"{{"type":"user","content":[{{"type":"tool_result"}}]}}"#).unwrap();
+        writeln!(f, r#"{{"type":"assistant","content":[{{"type":"text","text":"done"}}]}}"#).unwrap();
 
         assert_eq!(determine_stop_state(path.to_str().unwrap()), "idle");
     }
