@@ -1,0 +1,254 @@
+{
+  "defaultMode": "acceptEdits",
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": true
+  },
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "python3 ~/.claude/hooks/post-commit-context.py",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "bash ~/.claude/hooks/auto-format.sh",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Write|Edit"
+      },
+      {
+        "hooks": [
+          {
+            "command": "python3 ~/.claude/hooks/detect-git-init.py",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "/Users/rashasaadeh/workspace/personal/ccs/target/release/cove hook ask-done",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "AskUserQuestion"
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "python3 ~/.claude/hooks/pre-compact.py",
+            "statusMessage": "Preserving context",
+            "timeout": 10,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "python3 ~/.claude/hooks/validate-bash.py",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "/Users/rashasaadeh/workspace/personal/ccs/target/release/cove hook ask",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "AskUserQuestion"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash ~/.claude/hooks/session-start.sh",
+            "statusMessage": "Setting up environment",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "startup"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "/Users/rashasaadeh/workspace/personal/ccs/target/release/cove hook stop",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "TaskCompleted": [],
+    "TeammateIdle": [],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "/Users/rashasaadeh/workspace/personal/ccs/target/release/cove hook user-prompt",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Read(~/.claude/CLAUDE.md)",
+      "WebSearch",
+      "WebFetch",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(file *)",
+      "Bash(which *)",
+      "Bash(pwd)",
+      "Bash(realpath *)",
+      "Bash(dirname *)",
+      "Bash(basename *)",
+      "Bash(git status *)",
+      "Bash(git status)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git diff)",
+      "Bash(git branch *)",
+      "Bash(git branch)",
+      "Bash(git show *)",
+      "Bash(git remote *)",
+      "Bash(git rev-parse *)",
+      "Bash(git tag *)",
+      "Bash(git stash list)",
+      "Bash(jq *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(cut *)",
+      "Bash(tr *)",
+      "Bash(diff *)",
+      "Bash(xargs *)",
+      "Bash(echo *)",
+      "Bash(date *)",
+      "Bash(date)",
+      "Bash(env)",
+      "Bash(printenv *)",
+      "Bash(whoami)",
+      "Bash(uname *)",
+      "Bash(docker *)",
+      "Bash(docker compose *)",
+      "Bash(uv *)",
+      "Bash(python3 *)",
+      "Bash(curl *)",
+      "Bash(migrate *)",
+      "Bash(node *)",
+      "Bash(npm *)",
+      "Bash(go *)",
+      "Bash(bun *)",
+      "Bash(cargo *)",
+      "Bash(rustup *)",
+      "Bash(git pull *)",
+      "Bash(git fetch *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr status *)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh issue status *)",
+      "Bash(gh repo view *)",
+      "Bash(gh api *)",
+      "Bash(gh search *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "mcp__graphite__run_gt_cmd",
+      "mcp__graphite__learn_gt",
+      "Read(/Users/rashasaadeh/.claude/**)",
+      "Read(/Users/rashasaadeh/workspace/**)",
+      "Edit(/Users/rashasaadeh/workspace/personal/**)",
+      "Write(/Users/rashasaadeh/workspace/personal/**)"
+    ],
+    "deny": ["Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(chmod 777 *)"]
+  },
+  "statusLine": {
+    "command": "bash /Users/rashasaadeh/.claude/statusline-command.sh",
+    "type": "command"
+  }
+}
