@@ -32,13 +32,29 @@ The setup script symlinks configs and adds `ccs` to your PATH. It won't overwrit
 
 ```bash
 ccs start myproject ~/code/myproject    # Start CCS with a session
-ccs new backend ~/code/backend          # Add another session tab
+ccs start backend ~/code/backend        # Add another session tab
 ccs list                                # List active sessions
 ccs kill backend                        # Kill a specific session
 ccs all-kill                            # Kill all sessions
 ```
 
 To re-attach after detaching: `ccs start` (detects the existing session and re-attaches).
+
+### Worktrees
+
+To work on multiple branches of the same repo in parallel, start a new session and either create the worktree yourself or let Claude do it:
+
+```bash
+# Option A: Create a worktree yourself, then start a session in it
+git -C ~/code/myproject worktree add ~/code/myproject-fix fix-branch
+ccs start myproject-fix ~/code/myproject-fix
+
+# Option B: Start a session on the same repo and ask Claude to create a worktree
+ccs start myproject-fix ~/code/myproject
+# Then tell Claude: "work in a worktree for fix-branch"
+```
+
+Use the session navigator (`⌘P` + arrow keys) to switch between them. Session names must be unique.
 
 ## Keyboard shortcuts
 
