@@ -30,6 +30,7 @@ usage() {
     printf "  %scss list%s                  List active sessions\n" "$C_PEACH" "$C_R"
     printf "  %scss kill%s  <name>          Kill a single session tab\n" "$C_PEACH" "$C_R"
     printf "  %scss all-kill%s              Kill all sessions\n" "$C_PEACH" "$C_R"
+    printf "  %scss resume%s                Reattach to existing session\n" "$C_PEACH" "$C_R"
     printf "  %scss help%s                  Show this help\n" "$C_PEACH" "$C_R"
     printf "\n"
     printf "%sExamples:%s\n" "$C_BLUE" "$C_R"
@@ -94,6 +95,19 @@ cmd_list() {
     done
 }
 
+cmd_resume() {
+    if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+        printf "%sNo active ccs session.%s Run %scss start%s to create one.\n" "$C_OVERLAY" "$C_R" "$C_PEACH" "$C_R"
+        return 1
+    fi
+
+    if [ -n "$TMUX" ]; then
+        tmux switch-client -t "$SESSION"
+    else
+        tmux attach -t "$SESSION"
+    fi
+}
+
 cmd_kill() {
     local name=${1:?"Usage: ccs kill <name>"}
 
@@ -118,6 +132,7 @@ cmd_kill_all() {
 
 case "${1:-help}" in
     start|new) shift; cmd_start "$@" ;;
+    resume) cmd_resume ;;
     list|ls) shift; cmd_list "$@" ;;
     kill)   shift; cmd_kill "$@" ;;
     all-kill) cmd_kill_all ;;
