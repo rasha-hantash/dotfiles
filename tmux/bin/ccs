@@ -16,11 +16,11 @@ C_R=$'\033[0m'
 
 setup_layout() {
     local win="$SESSION:$1"
-    tmux set-option -w -t "$win" remain-on-exit on
-    tmux split-window -t "$win" -v -p 25
-    tmux split-window -t "$win.2" -h -p 25 "~/.local/bin/tmux-sidebar"
-    tmux select-pane -t "$win.1"
-    tmux send-keys -t "$win.1" "claude" Enter
+    tmux set-option -w -t "$win" remain-on-exit on \; \
+        split-window -t "$win" -v -p 25 \; \
+        split-window -t "$win.2" -h -p 30 "~/.local/bin/tmux-sidebar" \; \
+        select-pane -t "$win.1" \; \
+        send-keys -t "$win.1" "claude" Enter
 }
 
 usage() {
@@ -80,7 +80,7 @@ cmd_start() {
         set-option -w remain-on-exit on \; \
         set-hook pane-died 'respawn-pane' \; \
         split-window -v -p 25 \; \
-        split-window -t .2 -h -p 25 "~/.local/bin/tmux-sidebar" \; \
+        split-window -t .2 -h -p 30 "~/.local/bin/tmux-sidebar" \; \
         select-pane -t .1 \; \
         send-keys -t .1 "claude" Enter
 }

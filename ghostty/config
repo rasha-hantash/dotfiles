@@ -10,3 +10,4 @@ macos-option-as-alt = true
 keybind = cmd+j=text:\x01f
 keybind = cmd+p=text:\x01s
 keybind = cmd+m=text:\x01m
+keybind = cmd+semicolon=text:\x01d
