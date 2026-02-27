@@ -31,4 +31,19 @@ pub enum Command {
     Resume,
     /// Interactive session navigator (launched by start)
     Sidebar,
+    /// Handle Claude Code hook events (called by hooks, not directly)
+    Hook {
+        #[command(subcommand)]
+        event: HookEvent,
+    },
+    /// Install Claude Code hooks for session status detection
+    Init,
+}
+
+#[derive(Subcommand)]
+pub enum HookEvent {
+    /// Claude received a user prompt (UserPromptSubmit hook)
+    UserPrompt,
+    /// Claude finished responding (Stop hook)
+    Stop,
 }
