@@ -124,6 +124,10 @@ while true; do
     render
 
     if read -rsk1 -t 0.1 key 2>/dev/null; then
+        # Sync selected to the active window before processing.
+        # Another sidebar instance may have just switched to this
+        # window, leaving our selected stale.
+        refresh_windows
         local moved=0
 
         # Process this key
