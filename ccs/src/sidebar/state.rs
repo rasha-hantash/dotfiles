@@ -58,6 +58,9 @@ struct WindowTracker {
     stable_streak: u32,
     ever_worked: bool,
     was_working: bool,
+    /// True after Claude finishes a generation turn. Cleared on any content change
+    /// (user typing resets it so `(ready)` disappears until Claude responds again).
+    turn_complete: bool,
 }
 
 // ── Cross-instance state sharing ──
@@ -132,18 +135,28 @@ impl StateDetector {
             let tracker = self
                 .trackers
                 .entry(win.index)
-                .or_insert_with(|| WindowTracker {
-                    prev_raw: raw_capture.clone(),
-                    change_streak: 0,
-                    stable_streak: 0,
-                    ever_worked: check_worked(win.index),
-                    was_working: false,
+                .or_insert_with(|| {
+                    let worked = check_worked(win.index);
+                    WindowTracker {
+                        prev_raw: raw_capture.clone(),
+                        change_streak: 0,
+                        stable_streak: 0,
+                        ever_worked: worked,
+                        was_working: false,
+                        turn_complete: worked,
+                    }
                 });
 
             // Count how many lines actually changed — user typing ≈ 1 line,
             // Claude generating ≈ 2+ lines.
             let diff = changed_line_count(&tracker.prev_raw, &raw_capture);
             let significant = diff >= SIGNIFICANT_LINES;
+
+            // Any content change clears turn_complete — user is interacting,
+            // so hide (ready) until Claude responds again.
+            if diff > 0 {
+                tracker.turn_complete = false;
+            }
 
             if significant {
                 tracker.change_streak += 1;
@@ -165,13 +178,19 @@ impl StateDetector {
                 // Recently was working, brief pause — keep showing Working
                 WindowState::Working
             } else {
+                if tracker.was_working {
+                    // Transitioning from Working → stable: Claude finished this turn
+                    tracker.turn_complete = true;
+                }
                 tracker.was_working = false;
-                if !tracker.ever_worked {
-                    WindowState::Fresh
-                } else if detect_question(&raw_capture) {
-                    WindowState::Asking
+                if tracker.turn_complete {
+                    if detect_question(&raw_capture) {
+                        WindowState::Asking
+                    } else {
+                        WindowState::Idle
+                    }
                 } else {
-                    WindowState::Idle
+                    WindowState::Fresh
                 }
             };
 
