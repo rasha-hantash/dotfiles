@@ -129,7 +129,7 @@ impl Widget for SidebarWidget<'_> {
                 } else if !status.is_empty() {
                     // Right-align status text against the legend column
                     let name_width = 3 + win.name.len(); // " · " or " ❯ " prefix + name
-                    let status_width = status.len() + 2; // 2 spaces before status
+                    let status_width = status.chars().count() + 2; // 2 spaces before status
                     let pad = (right_col as usize).saturating_sub(name_width + status_width);
                     spans.push(Span::raw(" ".repeat(pad)));
                     spans.push(status_span(state, self.tick));
@@ -173,6 +173,11 @@ fn status_span(state: WindowState, tick: u64) -> Span<'static> {
             let frame = SPINNER[tick as usize % SPINNER.len()];
             Span::styled(format!(" {frame}"), Style::default().fg(colors::LAVENDER))
         }
-        _ => Span::styled(status_text(state), Style::default().fg(colors::OVERLAY)),
+        _ => Span::styled(
+            status_text(state),
+            Style::default()
+                .fg(colors::OVERLAY)
+                .add_modifier(Modifier::ITALIC),
+        ),
     }
 }
