@@ -161,7 +161,7 @@ fn status_text(state: WindowState) -> &'static str {
     match state {
         WindowState::Working => "",
         WindowState::Asking => "waiting\u{2026}",
-        WindowState::Idle => "ready",
+        WindowState::Idle => "",
         WindowState::Done => "done",
         WindowState::Fresh => "",
     }
