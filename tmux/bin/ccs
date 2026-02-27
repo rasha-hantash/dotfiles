@@ -45,6 +45,12 @@ cmd_start() {
     local dir=${2:-$(pwd)}
 
     if tmux has-session -t "$SESSION" 2>/dev/null; then
+        # Reject duplicate window names
+        if tmux list-windows -t "$SESSION" -F '#{window_name}' | grep -qx "$name"; then
+            printf "Session '%s%s%s' already exists. Pick a different name.\n" "$C_PEACH" "$name" "$C_R"
+            return 1
+        fi
+
         # Session exists — add a new window
         tmux new-window -t "$SESSION" -n "$name" -c "$dir"
         setup_layout "$name"
