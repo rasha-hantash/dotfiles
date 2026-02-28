@@ -11,3 +11,6 @@ keybind = cmd+j=text:\x01f
 keybind = cmd+p=text:\x01s
 keybind = cmd+m=text:\x01m
 keybind = cmd+semicolon=text:\x01d
+
+# Normalize Shift+Space to regular space (prevents [27;2;32~ escape leak)
+keybind = shift+space=text:\x20
