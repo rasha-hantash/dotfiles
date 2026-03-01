@@ -71,12 +71,34 @@
         "hooks": [
           {
             "async": true,
-            "command": "/Users/rashasaadeh/workspace/personal/ccs/target/release/cove hook ask-done",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask-done",
             "timeout": 5,
             "type": "command"
           }
         ],
         "matcher": "AskUserQuestion"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask-done",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "ExitPlanMode"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask-done",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "EnterPlanMode"
       }
     ],
     "PreCompact": [
@@ -106,12 +128,34 @@
         "hooks": [
           {
             "async": true,
-            "command": "/Users/rashasaadeh/workspace/personal/ccs/target/release/cove hook ask",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask",
             "timeout": 5,
             "type": "command"
           }
         ],
         "matcher": "AskUserQuestion"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "ExitPlanMode"
+      },
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "EnterPlanMode"
       }
     ],
     "SessionStart": [
@@ -143,7 +187,7 @@
         "hooks": [
           {
             "async": true,
-            "command": "/Users/rashasaadeh/workspace/personal/ccs/target/release/cove hook stop",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook stop",
             "timeout": 5,
             "type": "command"
           }
@@ -158,7 +202,7 @@
         "hooks": [
           {
             "async": true,
-            "command": "/Users/rashasaadeh/workspace/personal/ccs/target/release/cove hook user-prompt",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook user-prompt",
             "timeout": 5,
             "type": "command"
           }
@@ -170,6 +214,8 @@
   "permissions": {
     "allow": [
       "Read(~/.claude/CLAUDE.md)",
+      "Glob",
+      "Grep",
       "WebSearch",
       "WebFetch",
       "Bash(ls *)",
@@ -245,7 +291,11 @@
       "Edit(/Users/rashasaadeh/workspace/personal/**)",
       "Write(/Users/rashasaadeh/workspace/personal/**)"
     ],
-    "deny": ["Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(chmod 777 *)"]
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(chmod 777 *)"
+    ]
   },
   "statusLine": {
     "command": "bash /Users/rashasaadeh/.claude/statusline-command.sh",
