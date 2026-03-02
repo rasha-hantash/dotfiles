@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(afplay:*)"
+      "Bash(afplay:*)",
+      "Bash(cargo build:*)",
+      "Bash(ln:*)",
+      "Bash(ccs:*)",
+      "Bash(git add:*)",
+      "mcp__graphite__run_gt_cmd",
+      "Bash(git checkout:*)"
     ]
   }
 }
