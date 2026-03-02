@@ -1,3 +1,7 @@
+## Permission Surfacing
+
+Before starting exploratory or multi-step work, present a summary of the tools and actions you'll need (e.g., "I'll need to read files in X, grep for Y, run Z commands") so the user can batch-approve upfront rather than getting interrupted by individual permission prompts.
+
 ## Response Protocol
 
 Before acting on a request, consider whether you have clarifying questions, disagreements, or think I'm solving the wrong problem entirely. If you do, lead with that before answering — be direct, not diplomatic. If the request is clear and you have no pushback, just proceed.
@@ -31,97 +35,11 @@ If you have pushback (per Response Protocol), incorporate it into the framing �
 
 ## Frontend Structure Convention
 
-Follow this co-location pattern for React frontends. The core principle: shared code lives at the top level, page-specific code lives with the page.
-
-### Next.js (App Router)
-
-**Top-level directories** (`frontend/`) hold code shared across multiple pages:
-
-- `components/` — reusable components used by more than one page
-- `lib/` — shared utilities, API clients, helpers
-- `types/` — shared TypeScript type definitions
-- `hooks/` — shared custom React hooks (if needed)
-
-**Page-scoped directories** (`app/<route>/`) hold code used only by that page:
-
-- `components/` — components specific to this page
-- `hooks/` — custom hooks specific to this page
-- `lib/` — constants and helpers specific to this page
-- `types/` — type definitions specific to this page
-
-**Key rules:**
-
-- Use barrel files (`index.ts`) for clean imports from each subdirectory.
-- Follow Next.js App Router conventions (`page.tsx`, `layout.tsx`, `'use client'` directive).
-
-### TanStack Router (Vite / Tauri)
-
-**Top-level directories** (`src/`) hold code shared across multiple routes:
-
-- `components/` — reusable components used by more than one route
-- `api/` — shared API clients, query definitions, type definitions
-- `lib/` — shared utilities and helpers
-- `hooks/` — shared custom React hooks (if needed)
-- `data/` — shared static/mock data
-
-**Route-scoped directories** (`src/routes/<route>/`) hold code used only by that route:
-
-- `components/` — components specific to this route
-- `hooks/` — custom hooks specific to this route
-- `lib/` — constants and helpers specific to this route
-- `types/` — type definitions specific to this route
-
-**Key rules:**
-
-- Route files (`__root.tsx`, `index.tsx`, `about.tsx`) live in `src/routes/` and define the route component + loader. TanStack Router's file-based routing generates `routeTree.gen.ts` automatically.
-- Use barrel files (`index.ts`) for clean imports from each subdirectory.
-
-### General rules (all frameworks)
-
-- If something is used by multiple pages/routes, it belongs at the top level. If it's only used by one page/route, co-locate it with that page/route.
-- Each page/route directory is a self-contained module with its own `components/`, `hooks/`, `lib/`, and `types/` subdirectories as needed.
+See `brain-os/frontend-conventions.md` — "Directory Structure — Co-location Pattern" section.
 
 ## Backend Structured Logging Convention
 
-Always use structured JSON logging for any backend. Set this up at the entry point of the application.
-
-**Core principles (language-agnostic):**
-
-- Output logs as JSON to stdout.
-- Always include source location (file and line number) in every log line.
-- Initialize a single global/default logger so all code uses the same configuration.
-- Use structured key-value pairs for all log data. Never use string interpolation or `fmt.Sprintf` in log messages.
-- Log messages should be short, lowercase, descriptive labels (e.g., `"query failed"`, `"change accepted"`, `"version mismatch"`).
-- Propagate request-scoped fields (like `request_id`) through context so they appear in every log within a request automatically.
-- Use middleware to inject a `request_id` (UUID) into context at the start of every request.
-
-**Log levels:**
-
-- `Error` — unexpected failures (DB errors, encoding failures).
-- `Warn` — bad client input (invalid IDs, missing headers).
-- `Info` — successful business events (change created, request completed) and version conflicts.
-- `Debug` — query-level detail (query executed, document not found).
-
-**Data transformation logging:** When code silently filters, strips, or transforms data (e.g., removing null rows, stripping invalid characters, truncating fields), always log at `Info` level with context about what was changed. These are low-volume (only fire when something anomalous happens) and need to be visible in production for diagnosing data quality issues. Include enough structured fields to identify the source (file, page, table index, count of items affected).
-
-### Example: Go with `log/slog`
-
-**Logger initialization:**
-
-- Use `slog.NewJSONHandler(os.Stdout, opts)` for JSON output to stdout.
-- Always enable `AddSource: true` in `slog.HandlerOptions` so every log line includes the source file and line number.
-- Set the default logger with `slog.SetDefault(...)` so all code uses the same logger.
-
-**Context-aware logging:**
-
-- Create a custom `ContextHandler` that wraps `slog.Handler` and extracts `slog.Attr` values from `context.Context` before logging. This allows request-scoped fields (like `request_id`) to appear in every log automatically.
-- Provide an `AppendCtx(ctx, attrs...)` helper to attach attributes to context.
-- Use middleware to inject a `request_id` (UUID) into context at the start of every request.
-
-**Logging style:**
-
-- Always use `slog.InfoContext(ctx, ...)`, `slog.ErrorContext(ctx, ...)`, etc. — never the non-context variants inside request handlers — so request-scoped fields are always included.
-- Use structured key-value pairs: `slog.InfoContext(ctx, "change created", "document_id", id, "query_ms", duration)`.
+See `brain-os/logging-conventions.md`.
 
 ## Dotfiles
 
@@ -134,12 +52,18 @@ After making changes, commit from the dotfiles repo so changes are tracked with 
 
 ## Convention Docs (brain-os)
 
+brain-os (`~/workspace/personal/brain-os/`) is the knowledge base for reusable conventions, patterns, and learnings. When starting work in an unfamiliar area or one that might have documented conventions, scan the directory (`ls` + `grep`) to check for relevant docs before proceeding. The backlinks below cover known categories, but new docs may exist from triaged session learnings.
+
 When working on code, read the relevant convention doc before making changes:
 
 - **Rust** (general): Read `/Users/rashasaadeh/workspace/personal/brain-os/rust/rust-conventions.md`
 - **Tauri backend** (`src-tauri/`): Read `/Users/rashasaadeh/workspace/personal/brain-os/rust/tauri.md`
 - **TypeScript / React frontend** (`src/`): Read `/Users/rashasaadeh/workspace/personal/brain-os/frontend-conventions.md`
 - **TanStack Router** (routing, navigation, route files): Read `/Users/rashasaadeh/workspace/personal/brain-os/tanstack-router-guide.md`
+- **Backend logging**: Read `/Users/rashasaadeh/workspace/personal/brain-os/logging-conventions.md`
+- **PR review monitor**: Read `/Users/rashasaadeh/workspace/personal/brain-os/claude/pr-review-monitor.md`
+- **Pre-build validation** (complex features): Read `/Users/rashasaadeh/workspace/personal/brain-os/claude/pre-build-validation.md`
+- **Git** (hooks, branching, worktrees, Graphite gotchas): Read `/Users/rashasaadeh/workspace/personal/brain-os/git/git.md`
 
 ## Git Workflow — Graphite (gt)
 
@@ -149,6 +73,7 @@ Always use the Graphite MCP (`gt`) instead of raw `git` commands for creating br
 
 - Instead of `git commit`, use `gt create -m "message"` — creates a commit and a branch.
 - Instead of `git push`, use `gt submit --no-interactive` — publishes the current branch and all downstack branches.
+- After `gt submit`, always share the **Graphite PR link** (`https://app.graphite.com/github/pr/...`) with the user, not the GitHub PR link. Graphite is the primary review UI.
 - Use `gt modify` to amend the current branch and rebase upstack PRs.
 - Use `gt sync` to pull latest trunk and rebase all open stacks.
 
@@ -189,45 +114,20 @@ After writing or modifying significant code (new features, bug fixes, refactors)
 
 For deeper analysis, use `/perf-review` (performance review) or `/test-runner` (full test suite).
 
-## PR Review Monitor
+## Session Learnings
 
-After pushing a PR (via `gt submit` or `git push`), automatically launch a background sub-agent to monitor for review comments and address them.
+**Proactive surfacing:** When you notice a non-obvious gotcha, surprising library behavior, a debugging technique that worked, a UI/UX pattern worth codifying, or any development insight — flag it immediately in the conversation. Don't wait until the end.
 
-**Trigger:** Any time a PR is created or updated and pushed to a remote.
+**End-of-session capture:** Before wrapping up a session, review the conversation for learnings and create a file in `~/workspace/personal/brain-os/claude-learnings/` with the format `YYYY-MM-DD-<short-slug>.md`. Each learning entry should include:
 
-**Sub-agent behavior:**
+- **What:** the insight or gotcha
+- **Context:** what we were doing when we discovered it
+- **Suggested destination:** which brain-os doc this might belong in (e.g., `rust/rust-conventions.md`, `frontend-conventions.md`, or "new doc: X")
 
-1. Poll `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` and `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` every 3 minutes.
-2. Track addressed comment IDs to avoid re-processing.
-3. When new review comments are detected:
-   - Read each comment and the referenced file(s) locally.
-   - Read relevant convention docs (brain-os, project CLAUDE.md) for context before making changes.
-   - Make focused, minimal code changes that address only what the reviewer asked for.
-   - Triage each comment into one of three actions:
-     - **Address**: Make the code change and reply on the PR comment confirming the fix.
-     - **Partially address**: Make a partial change, reply explaining what was done and what was intentionally left as-is (with reasoning).
-     - **Reject**: Do not change the code. Reply on the PR comment with a clear explanation of why the feedback doesn't apply (e.g., the code already handles it, it's a deliberate design decision, or the reviewer misread the code).
-   - Use `gh api` to reply to each review comment with the resolution (addressed, partially addressed, or rejected with reasoning).
-   - For addressed and partially addressed comments, commit with: `fix: address review feedback — [brief description]` and include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`.
-   - Push to the PR branch.
-4. Continue monitoring after pushing fixes.
-5. Stop after 30 minutes of no new comments (10 polling cycles).
+Then open a PR to brain-os via `gt create` + `gt submit --no-interactive` so the user can triage and merge.
 
-**Permission gating:**
+## PR Review Monitor — Mandatory Post-Submit Step
 
-Before launching the sub-agent, create the sentinel file so the PreToolUse hook auto-allows `git add/commit/push` and `sleep`:
+**Every time** a PR is created or updated via `gt submit`, immediately launch a background sub-agent to monitor for Mesa review comments and address them. This is not optional — do it automatically without being asked.
 
-```bash
-touch ~/.claude/.pr-review-active
-```
-
-Instruct the sub-agent to remove the sentinel when it finishes (after the final polling cycle):
-
-```bash
-rm -f ~/.claude/.pr-review-active
-```
-
-**Sub-agent launch config:**
-
-- Use `Task` tool with `subagent_type: "general-purpose"`, `run_in_background: true`, `mode: "bypassPermissions"`.
-- Pass the repo path, branch name, PR number, owner/repo, and any project-specific context.
+**Full behavior, polling logic, triage rules, and launch config**: See `brain-os/claude/pr-review-monitor.md`.
