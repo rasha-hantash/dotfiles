@@ -1,14 +1,6 @@
-## Permission Surfacing
-
-Before starting exploratory or multi-step work, present a summary of the tools and actions you'll need (e.g., "I'll need to read files in X, grep for Y, run Z commands") so the user can batch-approve upfront rather than getting interrupted by individual permission prompts.
-
-## Response Protocol
-
-Before acting on a request, consider whether you have clarifying questions, disagreements, or think I'm solving the wrong problem entirely. If you do, lead with that before answering — be direct, not diplomatic. If the request is clear and you have no pushback, just proceed.
-
 ## Prompt Framing
 
-Before executing a new request, present a structured frame showing how you interpret it. This replaces the old hat-picking convention with full transparency.
+Before executing a new request, present a structured frame showing how you interpret it. If you have clarifying questions, disagreements, or think the user is solving the wrong problem — incorporate that into the framing, don't do a separate step.
 
 **Format:**
 
@@ -30,49 +22,28 @@ Before executing a new request, present a structured frame showing how you inter
 - Trivial requests (typo fixes, "what does X mean", one-liner questions with obvious answers)
 - When the user says "just answer" or explicitly skips framing
 
-**How it works with Response Protocol:**
-If you have pushback (per Response Protocol), incorporate it into the framing — e.g., present an alternative task interpretation or flag that the user might be solving the wrong problem. Don't do two separate steps.
-
-## Frontend Structure Convention
-
-See `brain-os/frontend-conventions.md` — "Directory Structure — Co-location Pattern" section.
-
-## Backend Structured Logging Convention
-
-See `brain-os/logging-conventions.md`.
-
 ## Dotfiles
 
 System-level configs (shell, tmux, editor) live in `~/workspace/personal/dotfiles/` and are symlinked to their real locations. When modifying any dotfile (e.g., `~/.tmux.conf`, scripts in `~/.local/bin/`), edit the source in the dotfiles repo and the symlink propagates the change.
 
 - **tmux config**: `dotfiles/tmux/tmux.conf` → `~/.tmux.conf`
-- **CC session scripts**: `dotfiles/tmux/bin/` → `~/.local/bin/` (cove, cc-start, cc-new, tmux-sidebar)
 
 After making changes, commit from the dotfiles repo so changes are tracked with git.
 
 ## Convention Docs (brain-os)
 
-brain-os (`~/workspace/personal/brain-os/`) is the knowledge base for reusable conventions, patterns, and learnings. When starting work in an unfamiliar area or one that might have documented conventions, scan the directory (`ls` + `grep`) to check for relevant docs before proceeding. The backlinks below cover known categories, but new docs may exist from triaged session learnings.
-
-When working on code, read the relevant convention doc before making changes:
-
-- **Rust** (general): Read `/Users/rashasaadeh/workspace/personal/brain-os/rust/rust-conventions.md`
-- **Tauri backend** (`src-tauri/`): Read `/Users/rashasaadeh/workspace/personal/brain-os/rust/tauri.md`
-- **TypeScript / React frontend** (`src/`): Read `/Users/rashasaadeh/workspace/personal/brain-os/frontend-conventions.md`
-- **TanStack Router** (routing, navigation, route files): Read `/Users/rashasaadeh/workspace/personal/brain-os/tanstack-router-guide.md`
-- **Backend logging**: Read `/Users/rashasaadeh/workspace/personal/brain-os/logging-conventions.md`
-- **PR review monitor**: Read `/Users/rashasaadeh/workspace/personal/brain-os/claude/pr-review-monitor.md`
-- **Pre-build validation** (complex features): Read `/Users/rashasaadeh/workspace/personal/brain-os/claude/pre-build-validation.md`
-- **Git** (hooks, branching, worktrees, Graphite gotchas): Read `/Users/rashasaadeh/workspace/personal/brain-os/git/git.md`
+brain-os (`~/workspace/personal/explorations/brain-os/`) is the knowledge base for reusable conventions, patterns, and learnings. When starting work in an unfamiliar area or one that might have documented conventions, scan the directory (`ls` + `grep`) to check for relevant docs before proceeding.
 
 ## Git Workflow — Graphite (gt)
 
 Always use the Graphite MCP (`gt`) instead of raw `git` commands for creating branches and publishing code. Never use `git commit`, `git push`, or `git checkout -b` directly.
 
+**Worktrees by default:** When creating PRs, always use a worktree (`isolation: "worktree"` in Task tool, or `EnterWorktree` for the main session) so changes are made on an isolated copy of the repo. This keeps `main` clean and avoids accidental commits on the wrong branch.
+
 **Core commands:**
 
 - Instead of `git commit`, use `gt create -m "message"` — creates a commit and a branch.
-- Instead of `git push`, use `gt submit --no-interactive` — publishes the current branch and all downstack branches.
+- Instead of `git push`, use `gt submit --no-interactive --publish` — publishes the current branch and all downstack branches. The `--publish` flag is required because `--no-interactive` defaults to draft mode, and draft PRs don't trigger CI/CD or Mesa reviews.
 - After `gt submit`, always share the **Graphite PR link** (`https://app.graphite.com/github/pr/...`) with the user, not the GitHub PR link. Graphite is the primary review UI.
 - Use `gt modify` to amend the current branch and rebase upstack PRs.
 - Use `gt sync` to pull latest trunk and rebase all open stacks.
@@ -90,7 +61,7 @@ When debugging or applying multiple fixes across conversational turns within the
 
 - On the first fix, `gt create` as usual to start the branch.
 - On subsequent fixes in the same conversation, use `gt modify` to amend the existing branch instead of creating new ones.
-- Only `gt submit --no-interactive` once at the end (or when the user asks to push), not after every fix.
+- Only `gt submit --no-interactive --publish` once at the end (or when the user asks to push), not after every fix.
 - If the fixes are truly unrelated (different features/areas), ask before batching — but default to batching within a single debugging session.
 
 **Example workflow for a feature with 3 diffs:**
@@ -98,15 +69,7 @@ When debugging or applying multiple fixes across conversational turns within the
 1. Write code for diff 1 → `git add` → `gt create -m "feat: add user model"`
 2. Write code for diff 2 → `git add` → `gt create -m "feat: add user API endpoints"`
 3. Write code for diff 3 → `git add` → `gt create -m "feat: add user UI components"`
-4. `gt submit --no-interactive` — publishes the entire stack.
-
-## Frontend Testing Philosophy
-
-Use Playwright for all actual frontend tests. Use Claude-in-Chrome as a development-time assistant to look at pages, help write those Playwright tests, and debug when things go wrong. Claude-in-Chrome is the pair programmer who can see the screen — not the test runner.
-
-- **Playwright** — deterministic, headless, runs in CI, has proper assertions. Owns regression tests and every user-facing flow.
-- **Claude-in-Chrome** — use for "does this look right?" checks during development, writing new Playwright tests (look at the page first, then write the test), debugging failing tests (reproduce visually), and responsive design spot-checks.
-- Prefer semantic selectors (`getByRole`, `getByText`, `getByTestId`) over CSS selectors in Playwright tests.
+4. `gt submit --no-interactive --publish` — publishes the entire stack.
 
 ## Post-coding checks
 
@@ -116,18 +79,48 @@ For deeper analysis, use `/perf-review` (performance review) or `/test-runner` (
 
 ## Session Learnings
 
-**Proactive surfacing:** When you notice a non-obvious gotcha, surprising library behavior, a debugging technique that worked, a UI/UX pattern worth codifying, or any development insight — flag it immediately in the conversation. Don't wait until the end.
+**Goal:** Capture non-obvious insights, gotchas, and patterns as PRs to brain-os. Sessions can end abruptly (cove kill, context limit), so capture continuously — never defer to "session end."
 
-**End-of-session capture:** Before wrapping up a session, review the conversation for learnings and create a file in `~/workspace/personal/brain-os/claude-learnings/` with the format `YYYY-MM-DD-<short-slug>.md`. Each learning entry should include:
+**Proactive surfacing:** When you notice a non-obvious gotcha, surprising library behavior, a debugging technique that worked, a UI/UX pattern worth codifying, or any development insight — flag it immediately in the conversation. Don't wait.
 
-- **What:** the insight or gotcha
-- **Context:** what we were doing when we discovered it
-- **Suggested destination:** which brain-os doc this might belong in (e.g., `rust/rust-conventions.md`, `frontend-conventions.md`, or "new doc: X")
+**Mandatory capture triggers — act on these automatically:**
 
-Then open a PR to brain-os via `gt create` + `gt submit --no-interactive` so the user can triage and merge.
+1. **After `gt submit`** — After publishing any PR, launch a background agent (`isolation: "worktree"`, working in the brain-os repo) to review the session and capture uncaptured learnings. This is mandatory, same as the PR monitor.
+2. **Pre-compaction reminder** — The pre-compact hook injects a learnings reminder with session ID and previous learnings context. When you see it, immediately capture learnings before context is compressed. This is your last chance.
+3. **Natural milestones** — After finishing a debugging session, resolving a complex issue, or completing a substantial piece of work, check for learnings worth capturing.
+
+**Session-aware chaining:** Learnings compound across compaction cycles within a session. The pre-compact hook injects the session ID prefix and any previously captured learnings from `~/.claude/session-learnings-chain.md`. Use these to avoid duplicating earlier captures and to build on them.
+
+**How to capture (background agent workflow):**
+
+1. **Get session ID** from the pre-compact system message (look for `Session ID prefix: <id>`). Use the first 8 chars as `session_short`. If not available, fall back to `$CLAUDE_SESSION_ID` env var or use `"unknown"`.
+2. **Check for existing PRs** from this session: `gh pr list --search "learnings/${session_short}" --state open`
+3. **If existing PR found**, read its content with `gh pr view`. Compare with new learnings:
+   - **Same topic area** → checkout branch, append to the learnings file, `gt modify`, `gt submit --no-interactive --publish`
+   - **Different topic** → create a new file and branch (step 4-6)
+   - **When in doubt, append** — fewer PRs is better for review.
+4. Agent works in a brain-os worktree (`~/workspace/personal/explorations/brain-os/`).
+5. **Create learnings file:** `claude-learnings/YYYY-MM-DD-<session_short>-<slug>.md`
+6. Each learning entry includes:
+   - **What:** the insight or gotcha
+   - **Context:** what we were doing when we discovered it
+   - **Suggested destination:** which brain-os doc this might belong in (e.g., `rust/rust-conventions.md`, `frontend-conventions.md`, or "new doc: X")
+7. **Branch via** `gt create` under `learnings/<session_short>/` namespace (e.g., `learnings/abc12345/terminal-escape-gotchas`).
+8. **Submit:** `gt submit --no-interactive --publish`
+9. **Update chain file:** Write to `~/.claude/session-learnings-chain.md` with a summary of ALL learnings captured so far this session (not just the latest). This file is read by the pre-compact hook on the next compaction cycle to provide continuity.
+10. Shares the Graphite PR link with the user.
+
+**What counts as a learning:** non-obvious gotchas, debugging techniques that worked, architecture patterns, tool/library quirks, workflow improvements. **What doesn't:** session-specific context, things already documented, trivial/well-known facts.
 
 ## PR Review Monitor — Mandatory Post-Submit Step
 
-**Every time** a PR is created or updated via `gt submit`, immediately launch a background sub-agent to monitor for Mesa review comments and address them. This is not optional — do it automatically without being asked.
+**Every time** a PR is created or updated via `gt submit`, immediately launch a background sub-agent to monitor for CI/CD status and review comments. This is not optional — do it automatically without being asked.
 
-**Full behavior, polling logic, triage rules, and launch config**: See `brain-os/claude/pr-review-monitor.md`.
+**What the sub-agent monitors:**
+
+1. **CI/CD checks** — poll `gh pr checks <number>` until all checks pass or fail. If a check fails, read the failure details and fix the issue (e.g., `cargo fmt`, clippy warnings, test failures). After fixing, `gt modify` + `gt submit --no-interactive --publish` and resume polling.
+2. **Review comments** — poll `gh api repos/{owner}/{repo}/pulls/{number}/comments` for Mesa or human review comments. Triage and address actionable feedback.
+
+**Polling cadence:** Check every 30 seconds for the first 5 minutes, then every 60 seconds after that. Stop after 15 minutes if everything is green and no new comments.
+
+**Sub-agent launch:** Use `Task` tool with `run_in_background: true`. The sub-agent should have access to the worktree where the PR branch lives so it can make fixes if CI fails.
