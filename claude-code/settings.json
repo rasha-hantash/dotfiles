@@ -71,34 +71,12 @@
         "hooks": [
           {
             "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask-done",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook post-tool",
             "timeout": 5,
             "type": "command"
           }
         ],
-        "matcher": "AskUserQuestion"
-      },
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask-done",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "ExitPlanMode"
-      },
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask-done",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "EnterPlanMode"
+        "matcher": "*"
       }
     ],
     "PreCompact": [
@@ -128,34 +106,12 @@
         "hooks": [
           {
             "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook pre-tool",
             "timeout": 5,
             "type": "command"
           }
         ],
-        "matcher": "AskUserQuestion"
-      },
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "ExitPlanMode"
-      },
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook ask",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "EnterPlanMode"
+        "matcher": "*"
       }
     ],
     "SessionStart": [

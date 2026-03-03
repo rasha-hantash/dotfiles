@@ -17,8 +17,6 @@ SENTINEL = os.path.expanduser("~/.claude/.pr-review-active")
 # --- PR review context: allowed only when sentinel file exists ---
 PR_REVIEW_PATTERNS = [
     r"^git\s+add\b",
-    r"^git\s+commit\b",
-    r"^git\s+push\b",
     r"^sleep\s+\d+",
 ]
 
@@ -27,6 +25,17 @@ DENY_PATTERNS = [
     # Privilege escalation
     (r"\bsudo\b", "sudo commands are blocked"),
     (r"\bdd\b.*\bof=", "dd write operations are blocked"),
+    # Git branch creation — use `gt create` instead
+    (r"git\s+checkout\s+-[bB]\b", "git checkout -b is blocked — use `gt create` instead"),
+    (r"git\s+switch\s+(-c|-C|--create)\b", "git switch -c is blocked — use `gt create` instead"),
+    (r"git\s+branch\s+(?!-[adrlv]|--all|--remotes|--list|--verbose|--show-current|--no-color|$)\S", "git branch <name> is blocked — use `gt create` instead"),
+    # Git branch switching — use `git worktree add` or EnterWorktree instead
+    (r"git\s+checkout\s+(?!-[bB]|--\s)(?!\.)\S", "git checkout <branch> is blocked — use `git worktree add` or EnterWorktree for isolation"),
+    (r"git\s+switch\s+(?!-c|-C|--create|-d|--detach|-)\S", "git switch <branch> is blocked — use `git worktree add` or EnterWorktree for isolation"),
+    # Git commit — use `gt create` or `gt modify` instead
+    (r"git\s+commit\b", "git commit is blocked — use `gt create` or `gt modify` instead"),
+    # Git push — use `gt submit` instead
+    (r"git\s+push\b", "git push is blocked — use `gt submit --no-interactive --publish` instead"),
     # Destructive git operations
     (r"git\s+push\s+.*--force.*\b(main|master)\b", "force push to main/master is blocked"),
     (r"git\s+push\s+.*\b(main|master)\b.*--force", "force push to main/master is blocked"),
@@ -66,6 +75,8 @@ ALLOW_PATTERNS = [
     r"^(uv\s+run\s+)?python3?\s+-m\s+pytest\b",
     r"^npm\s+(run\s+)?test\b",
     r"^go\s+test\b",
+    # Git worktrees (the approved isolation mechanism)
+    r"^git\s+worktree\b",
     # Graphite
     r"^gt\b",
     # Taskfile
