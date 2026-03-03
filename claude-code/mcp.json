@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "mcp-debugger": {
+      "command": "mcp-debugger",
+      "args": ["stdio"],
+      "env": {}
+    },
+    "mcp-js-debugger": {
+      "command": "npx",
+      "args": ["mcp-js-debugger"],
+      "env": {}
+    }
+  }
+}
