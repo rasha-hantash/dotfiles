@@ -9,6 +9,11 @@
       "command": "npx",
       "args": ["mcp-js-debugger"],
       "env": {}
+    },
+    "mcp-dap-server": {
+      "command": "/Users/rashasaadeh/workspace/personal/explorations/debugger/mcp-dap-server/bin/mcp-dap-server",
+      "args": [],
+      "env": {}
     }
   }
 }

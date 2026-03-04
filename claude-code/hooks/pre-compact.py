@@ -4,6 +4,11 @@
 Captures git state, active tasks, team members, and previous session
 learnings, then injects them as systemMessage so Claude retains
 awareness after compaction. Includes session ID for learnings chaining.
+
+Note: Learnings capture is triggered post-compaction (when Claude sees
+the compact summary), not here. SessionEnd hooks are unreliable and
+cove kill is forceful (SIGKILL via tmux), so we don't attempt capture
+at exit time.
 """
 
 import glob
@@ -159,24 +164,11 @@ def main():
             + previous_learnings
         )
 
+    # Include session ID for post-compaction learnings capture
     sections.append(
-        "## ACTION REQUIRED: Capture Session Learnings\n"
-        "Context is about to be compressed. This is a mandatory capture trigger.\n\n"
+        "## Session Context\n"
         f"**Session ID prefix:** `{session_short}`\n"
-        f"**Branch namespace:** `learnings/{session_short}/`\n\n"
-        "Before capturing, check for existing learnings PRs from this session:\n"
-        f'  `gh pr list --search "learnings/{session_short}" --state open`\n\n'
-        "If an existing PR covers the same topic area, amend it (gt checkout -> "
-        "append -> gt modify -> gt submit). If it is a different topic, create a new PR.\n\n"
-        "If this session produced any non-obvious insights, gotchas, debugging techniques, "
-        "or patterns worth remembering:\n"
-        "1. Launch a background agent (isolation: worktree) targeting the brain-os repo\n"
-        f"2. Create a learnings file: claude-learnings/YYYY-MM-DD-{session_short}-<slug>.md\n"
-        f"3. Branch via gt create under learnings/{session_short}/ namespace\n"
-        "4. Submit via gt submit --no-interactive --publish\n"
-        "5. Update the chain file (~/.claude/session-learnings-chain.md) with a summary "
-        "of all learnings captured so far this session\n\n"
-        "If nothing worth capturing, skip -- but actively decide, do not just forget."
+        f"**Branch namespace:** `learnings/{session_short}/`"
     )
 
     context = "# Pre-Compaction Snapshot\n\n" + "\n\n".join(sections)
