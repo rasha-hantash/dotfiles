@@ -114,6 +114,19 @@
         "matcher": "*"
       }
     ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "async": true,
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook session-end",
+            "timeout": 5,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

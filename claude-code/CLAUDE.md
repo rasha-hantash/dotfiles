@@ -34,6 +34,25 @@ After making changes, commit from the dotfiles repo so changes are tracked with 
 
 brain-os (`~/workspace/personal/explorations/brain-os/`) is the knowledge base for reusable conventions, patterns, and learnings. When starting work in an unfamiliar area or one that might have documented conventions, scan the directory (`ls` + `grep`) to check for relevant docs before proceeding.
 
+## Project Plans
+
+At session start, look for a plan file in the project root — any `.md` file with "plan" in the name (e.g., `PLAN.md`, `context-view-plan.md`, `debug-plan.md`). If one exists:
+
+- **Read it first** before doing any work. The Progress section is the source of truth for what's done and what's next.
+- **After completing a documented step:** Update the Progress section — check off the item (`- [x]`), add the date. If blocked or failed, note why inline.
+- **On failure or deviation:** Add a note under the relevant step explaining what went wrong and the revised approach.
+
+This is automatic — don't wait to be asked. After `/clear`, the file on disk still has progress, so re-reading it on the next session recovers state.
+
+**Creating plan files — two-checkpoint flow:**
+
+When a plan is ready (before calling `ExitPlanMode`), do NOT jump straight to requesting approval. Instead:
+
+1. **Ask to save:** "Want me to save this plan to a file?" If yes, write it to `<descriptive-name>-plan.md` in the project root (e.g., `auth-migration-plan.md`, `debug-panel-plan.md`). The file name should be a short kebab-case summary of the plan's purpose. Include a `## Progress` section with all steps as unchecked items (`- [ ]`).
+2. **Ask to execute:** "Want me to start executing?" The user may say no — they might want to review the file, share it, or come back later. Respect that.
+
+Both checkpoints are mandatory. Never skip from plan approval to execution without offering to persist the plan first.
+
 ## Git Workflow — Graphite (gt)
 
 Always use the Graphite MCP (`gt`) instead of raw `git` commands for creating branches and publishing code. Never use `git commit`, `git push`, or `git checkout -b` directly.
@@ -79,15 +98,20 @@ For deeper analysis, use `/perf-review` (performance review) or `/test-runner` (
 
 ## Session Learnings
 
-**Goal:** Capture non-obvious insights, gotchas, and patterns as PRs to brain-os. Sessions can end abruptly (cove kill, context limit), so capture continuously — never defer to "session end."
+**Goal:** Capture non-obvious insights, gotchas, and patterns as PRs to brain-os.
+
+**Why no exit-time capture:** `cove all-kill` forcefully terminates Claude (SIGKILL via tmux). Claude Code's `SessionEnd` hook is unreliable (only fires on Ctrl+D macOS, not on `/exit`, signals, or kills). So we capture during the session, not at exit.
 
 **Proactive surfacing:** When you notice a non-obvious gotcha, surprising library behavior, a debugging technique that worked, a UI/UX pattern worth codifying, or any development insight — flag it immediately in the conversation. Don't wait.
+
+**Surface learnings when applying them:** When applying a prior learning from brain-os, hitting a documented gotcha, or using a pattern from a previous session — flag it inline with a one-sentence summary. Format: *"Learning applied: [one sentence describing the gotcha/pattern and the fix/action taken]."* Keep it concise, not the full learning doc.
 
 **Mandatory capture triggers — act on these automatically:**
 
 1. **After `gt submit`** — After publishing any PR, launch a background agent (`isolation: "worktree"`, working in the brain-os repo) to review the session and capture uncaptured learnings. This is mandatory, same as the PR monitor.
-2. **Pre-compaction reminder** — The pre-compact hook injects a learnings reminder with session ID and previous learnings context. When you see it, immediately capture learnings before context is compressed. This is your last chance.
+2. **Post-compaction** — When you see a compact summary at the start of a continued conversation, review it for uncaptured learnings. The compact summary is the richest source material — it contains the full chronological analysis, errors, fixes, and insights from the previous context window. Use it to drive the learnings capture.
 3. **Natural milestones** — After finishing a debugging session, resolving a complex issue, or completing a substantial piece of work, check for learnings worth capturing.
+4. **Before suggesting /clear** — If you're about to suggest the user clear context, first capture any uncaptured learnings. Only suggest /clear after confirming learnings are captured or there are none to capture. Never suggest /clear without checking for learnings first.
 
 **Session-aware chaining:** Learnings compound across compaction cycles within a session. The pre-compact hook injects the session ID prefix and any previously captured learnings from `~/.claude/session-learnings-chain.md`. Use these to avoid duplicating earlier captures and to build on them.
 
@@ -105,12 +129,21 @@ For deeper analysis, use `/perf-review` (performance review) or `/test-runner` (
    - **What:** the insight or gotcha
    - **Context:** what we were doing when we discovered it
    - **Suggested destination:** which brain-os doc this might belong in (e.g., `rust/rust-conventions.md`, `frontend-conventions.md`, or "new doc: X")
+   - **Audit Trail:** status block initialized to `pending` (see format in `brain-os/claude-learnings/`)
 7. **Branch via** `gt create` under `learnings/<session_short>/` namespace (e.g., `learnings/abc12345/terminal-escape-gotchas`).
 8. **Submit:** `gt submit --no-interactive --publish`
 9. **Update chain file:** Write to `~/.claude/session-learnings-chain.md` with a summary of ALL learnings captured so far this session (not just the latest). This file is read by the pre-compact hook on the next compaction cycle to provide continuity.
 10. Shares the Graphite PR link with the user.
 
 **What counts as a learning:** non-obvious gotchas, debugging techniques that worked, architecture patterns, tool/library quirks, workflow improvements. **What doesn't:** session-specific context, things already documented, trivial/well-known facts.
+
+**Promoting learnings (double-entry ledger):** When integrating a learning into a destination doc:
+
+1. Add the content to the destination doc at the relevant location.
+2. Add inline provenance at the destination: `_Source: [claude-learnings/YYYY-MM-DD-slug.md](../claude-learnings/YYYY-MM-DD-slug.md) (Learning #N)_`
+3. Update the learning's audit trail: set status to `promoted`, fill in `Promoted to` (doc path + section) and `Promoted on` (date).
+
+Status values: `pending` | `promoted` | `declined` | `superseded`. Add a `Notes` field only when declining or superseding.
 
 ## PR Review Monitor — Mandatory Post-Submit Step
 
