@@ -1,184 +1,6 @@
 {
-  "defaultMode": "acceptEdits",
-  "enabledPlugins": {
-    "gopls-lsp@claude-plugins-official": true,
-    "ralph-loop@claude-plugins-official": true
-  },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  },
-  "hooks": {
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "python3 ~/.claude/hooks/post-commit-context.py",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
-      },
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "bash ~/.claude/hooks/auto-format.sh",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": "Write|Edit"
-      },
-      {
-        "hooks": [
-          {
-            "command": "python3 ~/.claude/hooks/detect-git-init.py",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
-      },
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook post-tool",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "command": "python3 ~/.claude/hooks/pre-compact.py",
-            "statusMessage": "Preserving context",
-            "timeout": 10,
-            "type": "command"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "command": "python3 ~/.claude/hooks/validate-bash.py",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
-      },
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook pre-tool",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook session-end",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "bash ~/.claude/hooks/session-start.sh",
-            "statusMessage": "Setting up environment",
-            "timeout": 10,
-            "type": "command"
-          }
-        ],
-        "matcher": "startup"
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      },
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook stop",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
-    "TaskCompleted": [],
-    "TeammateIdle": [],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "async": true,
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook user-prompt",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ]
   },
   "permissions": {
     "allow": [
@@ -266,8 +88,189 @@
       "Bash(chmod 777 *)"
     ]
   },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
+            "timeout": 30,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
+            "timeout": 30,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/git-guard.py",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/auto-format.sh",
+            "timeout": 30,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook post-tool",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/pre-compact.py",
+            "timeout": 10,
+            "statusMessage": "Preserving context"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/validate-bash.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook pre-tool",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook session-end",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/session-start.sh",
+            "timeout": 10,
+            "statusMessage": "Setting up environment"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
+            "timeout": 30,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook stop",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [],
+    "TeammateIdle": [],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/rashasaadeh/.cargo/bin/cove hook user-prompt",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ]
+  },
   "statusLine": {
-    "command": "bash /Users/rashasaadeh/.claude/statusline-command.sh",
-    "type": "command"
-  }
+    "type": "command",
+    "command": "bash /Users/rashasaadeh/.claude/statusline-command.sh"
+  },
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": true
+  },
+  "defaultMode": "acceptEdits",
+  "mcpServers": {
+    "technical-rag": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/Users/rashasaadeh/workspace/personal/explorations/technical-rag/mcp-server",
+        "python",
+        "-m",
+        "technical_rag_mcp"
+      ]
+    }
+  },
+  "effortLevel": "high"
 }
