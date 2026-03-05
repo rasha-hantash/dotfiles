@@ -164,6 +164,19 @@ def main():
             + previous_learnings
         )
 
+    # Learnings capture note — automated pipeline runs via async PreCompact hook,
+    # but the in-session agent can capture context the transcript pipeline misses.
+    sections.append(
+        "## Learnings Capture\n\n"
+        "The automated capture pipeline (`capture-learnings.py`) is running in the background "
+        "and will extract learnings from the transcript.\n\n"
+        "If you noticed non-obvious insights during this session that might not be in the transcript "
+        "(e.g., reasoning that wasn't written down, implicit decisions), consider launching the "
+        "learnings-capturer agent: spawn `~/.claude/agents/learnings-capturer.md` as a background agent.\n\n"
+        f"- Session ID prefix: `{session_short}`\n"
+        f"- Branch namespace: `learnings/{session_short}/`"
+    )
+
     # Include session ID for post-compaction learnings capture
     sections.append(
         "## Session Context\n"

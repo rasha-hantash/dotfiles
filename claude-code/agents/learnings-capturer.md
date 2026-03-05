@@ -42,11 +42,36 @@ You are launched as a background agent after one of these events:
 
 5. **Create learnings file:** `claude-learnings/YYYY-MM-DD-<session_short>-<slug>.md`
 
-6. **Each learning entry includes:**
+6. **Each learning entry includes the fields below.** Use the confidence rubric and overlap detection described in the next section.
+   - **Confidence:** 0.3-1.0 (see rubric below)
+   - **Similar to:** path to overlapping brain-os doc, or omit if clearly new
    - **What:** the insight or gotcha
    - **Context:** what we were doing when we discovered it
    - **Suggested destination:** which brain-os doc this might belong in (e.g., `rust/rust-conventions.md`, `frontend-conventions.md`, or "new doc: X")
-   - **Audit Trail:** status block initialized to `pending` (see format in existing learnings files)
+   - **Audit Trail:** status block initialized to `pending`
+
+### Confidence Rubric
+
+Score each learning across three dimensions — **novelty**, **reusability**, and **placement clarity**:
+
+| Score     | Level          | Novelty                                | Reusability                         | Placement                    |
+| --------- | -------------- | -------------------------------------- | ----------------------------------- | ---------------------------- |
+| 0.9 - 1.0 | Promote now    | Clearly new, not in brain-os           | Universal pattern, applies anywhere | Obvious destination doc      |
+| 0.7 - 0.8 | Likely promote | Probably new, not obviously documented | Reusable across most projects       | Reasonable destination guess |
+| 0.5 - 0.6 | Review first   | Might overlap with existing knowledge  | Somewhat generalizable              | Unsure where it belongs      |
+| 0.3 - 0.4 | Questionable   | Possibly already documented            | Narrow / project-specific edge case | No clear destination         |
+
+### Overlap detection
+
+Before scoring, scan existing brain-os docs to check for overlap:
+
+```
+ls ~/workspace/personal/explorations/brain-os/*.md
+ls ~/workspace/personal/explorations/brain-os/{claude,python,rust,git,unix}/*.md
+ls ~/workspace/personal/explorations/brain-os/claude-learnings/*.md
+```
+
+If a learning covers a topic already in an existing doc, set **Similar to** to that doc's path (e.g., `rust/rust-conventions.md`). This helps during review — the reviewer can decide whether to merge into the existing doc or keep as separate.
 
 7. **Branch and submit:**
    - `gt create` under `learnings/<session_short>/` namespace (e.g., `learnings/abc12345/terminal-escape-gotchas`)
