@@ -82,11 +82,7 @@
       "Edit(/Users/rashasaadeh/workspace/personal/**)",
       "Write(/Users/rashasaadeh/workspace/personal/**)"
     ],
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(rm -rf /*)",
-      "Bash(chmod 777 *)"
-    ]
+    "deny": ["Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(chmod 777 *)"]
   },
   "hooks": {
     "Notification": [
@@ -159,6 +155,17 @@
             "statusMessage": "Preserving context"
           }
         ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/capture-learnings.py",
+            "timeout": 120,
+            "async": true
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -192,6 +199,17 @@
             "type": "command",
             "command": "/Users/rashasaadeh/.cargo/bin/cove hook session-end",
             "timeout": 5,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/capture-learnings.py",
+            "timeout": 120,
             "async": true
           }
         ]
@@ -245,6 +263,16 @@
             "command": "/Users/rashasaadeh/.cargo/bin/cove hook user-prompt",
             "timeout": 5,
             "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/brain-os-context.py",
+            "timeout": 5
           }
         ]
       }
