@@ -1,2 +1,14 @@
+# Universal env vars — runs for ALL shells (interactive, scripts, cron)
 
-export PATH="$PATH:/Users/rashasaadeh/.foundry/bin"
+export LANG=en_US.UTF-8
+export EDITOR=nvim
+
+# Foundry (blockchain tooling)
+export PATH="$PATH:$HOME/.foundry/bin"
+
+# Go
+export GOPATH="$HOME/go"
+export PATH="$PATH:$GOPATH/bin"
+
+# Cargo (Rust)
+export PATH="$PATH:$HOME/.cargo/bin"
