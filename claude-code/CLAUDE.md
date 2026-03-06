@@ -27,6 +27,10 @@ System-level configs (shell, tmux, editor) live in `~/workspace/personal/dotfile
 
 After making changes, commit from the dotfiles repo so changes are tracked with git.
 
+## Internal Tools
+
+**Cove** (`~/workspace/personal/explorations/cove/`) — Rust CLI that manages multiple Claude Code sessions inside tmux. Do NOT guess how it works. If asked about cove internals (tmux pane creation, hook wiring, state detection), read its source code or its `CLAUDE.md` first.
+
 ## Convention Docs (brain-os + technical-rag)
 
 brain-os (`~/workspace/personal/explorations/brain-os/`) is the knowledge base for reusable conventions, patterns, and learnings. When starting work in an unfamiliar area or one that might have documented conventions, scan the directory (`ls` + `grep`) to check for relevant docs before proceeding.
