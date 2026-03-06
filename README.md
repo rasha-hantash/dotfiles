@@ -19,6 +19,10 @@ ghostty/config              # Ghostty theme + Cove keybinds
 tmux/tmux.conf              # tmux config (Ctrl+A prefix, Catppuccin theme)
 ccs/                        # Cove source (built by setup.sh)
 claude-code/keybindings.json # Claude Code keybindings (Tab for autocomplete)
+zsh/zshrc                   # Zsh interactive config (oh-my-zsh, Powerlevel10k, plugins)
+zsh/zprofile                # Login shell setup (brew, PATH)
+zsh/zshenv                  # Universal env vars (foundry PATH)
+zsh/zsh_secrets.template    # Template for ~/.zsh_secrets (API keys — fill in locally)
 ```
 
 ## Keyboard shortcuts

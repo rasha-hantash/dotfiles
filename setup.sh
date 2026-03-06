@@ -122,6 +122,15 @@ link_file "$DOTFILES/claude-code/statusline-command.sh" "$HOME/.claude/statuslin
 link_file "$DOTFILES/claude-code/hooks" "$HOME/.claude/hooks" "Claude Code hooks"
 link_file "$DOTFILES/claude-code/agents" "$HOME/.claude/agents" "Claude Code agents"
 link_file "$DOTFILES/claude-code/skills" "$HOME/.claude/skills" "Claude Code skills"
+link_file "$DOTFILES/zsh/zshrc" "$HOME/.zshrc" "zsh config"
+link_file "$DOTFILES/zsh/zprofile" "$HOME/.zprofile" "zsh profile"
+link_file "$DOTFILES/zsh/zshenv" "$HOME/.zshenv" "zsh env"
+
+if [ ! -f "$HOME/.zsh_secrets" ]; then
+    warn "No ~/.zsh_secrets found"
+    printf "    Copy the template and fill in your API keys:\n"
+    printf "    ${C_OVERLAY}cp %s/zsh/zsh_secrets.template ~/.zsh_secrets && chmod 600 ~/.zsh_secrets${C_R}\n" "$DOTFILES"
+fi
 
 printf "\n"
 
