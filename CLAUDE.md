@@ -8,6 +8,9 @@ System-level configs (shell, tmux, editor) managed from this repo and symlinked 
 - `tmux/bin/` → `~/.local/bin/` (session management scripts)
 - `ghostty/config` → Ghostty terminal config
 - `claude-code/` → Claude Code settings
+- `zsh/zshrc` → `~/.zshrc`
+- `zsh/zprofile` → `~/.zprofile`
+- `zsh/zshenv` → `~/.zshenv`
 - `setup.sh` — installs symlinks
 
 ## Cove (Claude Code Session Manager)
