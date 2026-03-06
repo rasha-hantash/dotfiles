@@ -108,9 +108,99 @@ After cleanup, zshrc will be ~50 lines. Skip splitting into separate sourced fil
 
 ## Progress
 
-- [ ] Phase 1: Reorganize content across zshenv / zprofile / zshrc
-- [ ] Phase 2: Create zsh_secrets.template (done — included in initial PR)
-- [ ] Phase 3: Plugin improvements (fast-syntax-highlighting, z, fzf, history-substring-search)
-- [ ] Phase 4: Lazy-load NVM
-- [ ] Phase 5: Cleanup (GO_PATH fix, $HOME normalization, PATH dedup)
+- [x] Phase 1: Reorganize content across zshenv / zprofile / zshrc (2026-03-06)
+- [x] Phase 2: Create zsh_secrets.template (2026-03-06, included in initial PR)
+- [x] Phase 3: Plugin improvements (2026-03-06)
+- [x] Phase 4: Lazy-load NVM (2026-03-06)
+- [x] Phase 5: Cleanup — merged with Phase 1 (GO_PATH fix, $HOME normalization, PATH dedup) (2026-03-06)
 - [ ] Phase 6: Modular structure (deferred — only if file grows past 150 lines)
+
+## Testing after merge
+
+### 1. Install custom plugins (one-time, required before opening a new shell)
+
+```sh
+# fast-syntax-highlighting (replaces zsh-syntax-highlighting)
+git clone https://github.com/zdharma-continuum/fast-syntax-highlighting \
+  ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting
+
+# zsh-autosuggestions (move from brew to oh-my-zsh custom)
+git clone https://github.com/zsh-users/zsh-autosuggestions \
+  ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+
+# history-substring-search
+git clone https://github.com/zsh-users/zsh-history-substring-search \
+  ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-history-substring-search
+```
+
+Also ensure `fzf` is installed: `brew install fzf`
+
+### 2. Measure shell startup time (before and after)
+
+```sh
+# Run BEFORE sourcing the new config (in current shell)
+time zsh -i -c exit
+
+# Open a new terminal tab (sources new config), then run again
+time zsh -i -c exit
+```
+
+Expect ~400-800ms improvement from NVM lazy-loading.
+
+### 3. Verify env vars are in the right files
+
+```sh
+# zshenv vars should be available in non-interactive shells (scripts)
+zsh -c 'echo "EDITOR=$EDITOR GOPATH=$GOPATH LANG=$LANG"'
+
+# zprofile vars should be available in login shells
+zsh -l -c 'echo "PATH includes local/bin: $(echo $PATH | grep -o "$HOME/.local/bin")"'
+```
+
+### 4. Test new plugins
+
+```sh
+# z — cd to a few directories first, then jump back by keyword
+cd ~/workspace/personal/explorations/brain-os
+cd ~/workspace/personal/explorations/dotfiles
+z brain    # should jump to brain-os
+
+# fzf — fuzzy history search
+# Press Ctrl+R, type a partial command, select with arrow keys
+
+# history-substring-search
+# Type a partial command (e.g., "git"), press Up arrow to cycle matches
+
+# fast-syntax-highlighting
+# Type a command — valid commands should be green, invalid should be red
+```
+
+### 5. Test NVM lazy-loading
+
+```sh
+# NVM shouldn't be loaded yet (wrapper functions in place)
+type nvm       # should show "nvm is a shell function"
+
+# First call triggers lazy load
+node --version # should work, but takes a moment on first call
+
+# Subsequent calls are instant
+node --version # fast now
+```
+
+### 6. Verify secrets still load
+
+```sh
+# Should show your API keys (if ~/.zsh_secrets exists)
+echo $ANTHROPIC_API_KEY | head -c 10
+```
+
+### Rollback
+
+If something breaks, the original files are still in git history. To revert:
+
+```sh
+cd ~/workspace/personal/explorations/dotfiles
+git log --oneline -5  # find the commit before the changes
+git checkout <commit> -- zsh/zshrc zsh/zprofile zsh/zshenv
+```
