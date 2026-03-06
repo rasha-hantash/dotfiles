@@ -39,6 +39,15 @@ alias pip=pip3
 # Source secrets (API keys, credentials) — not tracked in git
 [[ -f ~/.zsh_secrets ]] && source ~/.zsh_secrets
 
+# Lazy-load NVM — only initializes when you first call nvm, node, npm, npx, or yarn
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+lazy_load_nvm() {
+  unset -f nvm node npm npx yarn
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+}
+nvm()  { lazy_load_nvm; nvm "$@"; }
+node() { lazy_load_nvm; node "$@"; }
+npm()  { lazy_load_nvm; npm "$@"; }
+npx()  { lazy_load_nvm; npx "$@"; }
+yarn() { lazy_load_nvm; yarn "$@"; }
