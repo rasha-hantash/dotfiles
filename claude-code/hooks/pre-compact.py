@@ -5,10 +5,10 @@ Captures git state, active tasks, team members, and previous session
 learnings, then injects them as systemMessage so Claude retains
 awareness after compaction. Includes session ID for learnings chaining.
 
-Note: Learnings capture is triggered post-compaction (when Claude sees
-the compact summary), not here. SessionEnd hooks are unreliable and
-cove kill is forceful (SIGKILL via tmux), so we don't attempt capture
-at exit time.
+Post-compaction: Claude sees the ACTION REQUIRED message and launches
+the learnings-capturer agent (best quality — uses compact summary).
+Session end: capture-learnings.py runs as SessionEnd hook (fallback —
+catches final segment and no-compaction sessions).
 """
 
 import glob
@@ -164,17 +164,15 @@ def main():
             + previous_learnings
         )
 
-    # Learnings capture note — automated pipeline runs via async PreCompact hook,
-    # but the in-session agent can capture context the transcript pipeline misses.
+    # Mandatory learnings capture — Claude MUST launch the agent post-compaction.
     sections.append(
-        "## Learnings Capture\n\n"
-        "The automated capture pipeline (`capture-learnings.py`) is running in the background "
-        "and will extract learnings from the transcript.\n\n"
-        "If you noticed non-obvious insights during this session that might not be in the transcript "
-        "(e.g., reasoning that wasn't written down, implicit decisions), consider launching the "
-        "learnings-capturer agent: spawn `~/.claude/agents/learnings-capturer.md` as a background agent.\n\n"
-        f"- Session ID prefix: `{session_short}`\n"
-        f"- Branch namespace: `learnings/{session_short}/`"
+        "## ACTION REQUIRED: Capture Session Learnings\n\n"
+        "**You MUST launch the learnings-capturer agent NOW.** This is a mandatory trigger.\n\n"
+        "Run: Use the Agent tool to spawn `~/.claude/agents/learnings-capturer.md` as a background agent.\n\n"
+        "- Review the compact summary above for non-obvious insights, gotchas, and patterns\n"
+        "- The agent will create a PR to brain-os with extracted learnings\n"
+        f"- Use session ID prefix `{session_short}` for filename namespacing\n"
+        "- Do NOT skip this step. Learnings that aren't captured are lost forever."
     )
 
     # Include session ID for post-compaction learnings capture

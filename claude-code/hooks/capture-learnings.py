@@ -494,6 +494,13 @@ def main():
         log("No valid JSON on stdin")
         sys.exit(0)
 
+    # Detach from tmux session so we survive tmux kill-session.
+    # The hook is async, so Claude Code doesn't wait for us.
+    try:
+        os.setsid()
+    except OSError:
+        pass  # Already session leader, fine
+
     transcript_path = data.get("transcript_path", "")
     session_id = data.get("session_id", "")
     cwd = data.get("cwd", os.getcwd())
