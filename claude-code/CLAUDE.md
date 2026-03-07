@@ -113,7 +113,9 @@ For deeper analysis, use `/perf-review` (performance review) or `/test-runner` (
 
 Proactively surface non-obvious insights during the session. When you notice a gotcha, surprising behavior, or useful pattern — flag it inline immediately. When applying a prior learning from brain-os, note it: *"Learning applied: [one sentence]."*
 
-**Mandatory capture triggers** — after each of these, launch the `learnings-capturer` agent (see `~/.claude/agents/learnings-capturer.md`):
+When the user asks to record a learning, write it **directly to the appropriate convention doc** in brain-os (e.g., `unix/xdg-conventions.md`, `rust/rust-conventions.md`, `claude/claude.md`). If it doesn't fit an existing directory, create a new topic directory (e.g., `design/`, `devops/`, `testing/`). Do not write to `claude-learnings/` — that directory is deprecated. Convention docs are what get auto-injected into sessions; anything not in a convention doc is invisible.
+
+**Proactive capture triggers** — at these moments, check if there are non-obvious insights worth adding to brain-os convention docs:
 
 1. After `gt submit`
 2. Post-compaction (review compact summary for insights)
