@@ -24,8 +24,9 @@ Then start working. If you have clarifying questions or think the user is solvin
 System-level configs (shell, tmux, editor) live in `~/workspace/personal/dotfiles/` and are symlinked to their real locations. When modifying any dotfile (e.g., `~/.tmux.conf`, scripts in `~/.local/bin/`), edit the source in the dotfiles repo and the symlink propagates the change.
 
 - **tmux config**: `dotfiles/tmux/tmux.conf` → `~/.tmux.conf`
+- **Claude Code config**: `dotfiles/claude-code/` → `~/.claude/` (settings.json, CLAUDE.md, hooks/, commands/, agents/, skills/)
 
-After making changes, commit from the dotfiles repo so changes are tracked with git.
+**After modifying ANY file under `~/.claude/`**, you MUST commit and push from the dotfiles repo (`~/workspace/personal/explorations/dotfiles/`). These files are symlinked — the edit propagates automatically, but it's not tracked in git until you commit in dotfiles. Use `gt create` + `gt submit --no-interactive --publish` from the dotfiles repo. This applies to hooks, settings.json, CLAUDE.md, commands, agents, and skills.
 
 ## Internal Tools
 
@@ -61,11 +62,15 @@ When a plan is ready (before calling `ExitPlanMode`), do NOT jump straight to re
 
 Both checkpoints are mandatory. Never skip from plan approval to execution without offering to persist the plan first.
 
+**Plan files are committed to the repo.** Every plan file must be committed and pushed as part of the PR. Plan files serve as a system of record — they document what was planned, what was executed, and what was deferred. They stay in the repo permanently (don't delete after completion). Update progress and notes in the plan file as work proceeds — the plan is a living document, not a snapshot.
+
+**Plan files need a descriptive title.** The first heading (`# ...`) should be a clear, descriptive statement of what the plan achieves (e.g., `# Reliable Learnings Capture — No Lost Knowledge`), not just a feature name. Someone scanning the repo's plan files should understand the intent at a glance.
+
 ## Git Workflow — Graphite (gt)
 
 Always use the Graphite MCP (`gt`) instead of raw `git` commands for creating branches and publishing code. Never use `git commit`, `git push`, or `git checkout -b` directly.
 
-**Worktrees by default:** When creating PRs, always use a worktree (`isolation: "worktree"` in Task tool, or `EnterWorktree` for the main session) so changes are made on an isolated copy of the repo. This keeps `main` clean and avoids accidental commits on the wrong branch.
+**Worktrees FIRST — before any edits:** In any git repository, ALWAYS enter a worktree (`EnterWorktree` for main session, `isolation: "worktree"` for agents) BEFORE attempting any file edits. Do not try to edit first and wait for the branch guard to block you — proactively create the worktree as the very first step when you know edits are coming. Name worktrees descriptively based on the task (e.g., `reliable-learnings-capture`, `fix-sidebar-crash`). This applies to all repos, not just the current project.
 
 **Core commands:**
 

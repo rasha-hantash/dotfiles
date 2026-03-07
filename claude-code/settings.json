@@ -159,17 +159,6 @@
             "statusMessage": "Preserving context"
           }
         ]
-      },
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/capture-learnings.py",
-            "timeout": 120,
-            "async": true
-          }
-        ]
       }
     ],
     "PreToolUse": [
