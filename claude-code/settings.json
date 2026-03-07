@@ -82,11 +82,7 @@
       "Edit(/Users/rashasaadeh/workspace/personal/**)",
       "Write(/Users/rashasaadeh/workspace/personal/**)"
     ],
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(rm -rf /*)",
-      "Bash(chmod 777 *)"
-    ]
+    "deny": ["Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(chmod 777 *)"]
   },
   "hooks": {
     "Notification": [
@@ -211,7 +207,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/capture-learnings.py",
+            "command": "python3 ~/.claude/hooks/brain-os-capture.py",
             "timeout": 120,
             "async": true
           }

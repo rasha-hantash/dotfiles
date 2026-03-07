@@ -87,6 +87,11 @@ def extract_relevant_section(content: str, keywords: list[str]) -> str | None:
     if best_score == 0 or best_section is None:
         return None
 
+    # Strip footnote citations (noise in injected context)
+    best_section = re.sub(r"\[\^\d+\]", "", best_section)
+    best_section = re.sub(r"^\[\^\d+\]:.*$", "", best_section, flags=re.MULTILINE)
+    best_section = re.sub(r"\n{3,}", "\n\n", best_section)
+
     # Truncate if too long
     if len(best_section) > MAX_EXCERPT_CHARS:
         best_section = best_section[:MAX_EXCERPT_CHARS] + "\n..."
