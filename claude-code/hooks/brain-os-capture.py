@@ -22,6 +22,7 @@ from pathlib import Path
 # ── Config ──
 
 BRAIN_OS_PATH = Path.home() / "workspace/personal/explorations/brain-os"
+TRANSCRIPTS_DIR = BRAIN_OS_PATH / "transcripts"
 CLAUDE_PROJECTS_DIR = Path.home() / ".claude/projects"
 LOCK_FILE = Path.home() / ".claude/brain-os-capture.lock"
 LOG_FILE = Path.home() / ".claude/brain-os-capture.log"
@@ -407,6 +408,32 @@ def write_learning_to_doc(
     return target
 
 
+# ── Transcript Archive ──
+
+
+def archive_transcript(jsonl_path: Path, session_id: str) -> str | None:
+    """Copy the session JSONL to brain-os/transcripts/ for permanent storage.
+
+    Returns the relative path within brain-os, or None on failure.
+    """
+    TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+    dest = TRANSCRIPTS_DIR / f"{session_id}.jsonl"
+
+    if dest.exists():
+        log(f"Transcript already archived: {dest.name}")
+        return f"transcripts/{session_id}.jsonl"
+
+    try:
+        import shutil
+
+        shutil.copy2(str(jsonl_path), str(dest))
+        log(f"Archived transcript: {dest.name}")
+        return f"transcripts/{session_id}.jsonl"
+    except OSError as e:
+        log(f"Failed to archive transcript: {e}")
+        return None
+
+
 # ── Git Operations ──
 
 
@@ -564,6 +591,11 @@ def main():
                 print(f"  - {preview}... -> {target}")
 
         if modified_files:
+            # Archive the source transcript alongside the learnings
+            archived = archive_transcript(transcript_path, session_id)
+            if archived:
+                modified_files.append(archived)
+                print(f"  Archived transcript: {session_id}.jsonl")
             git_commit_and_submit(list(set(modified_files)), session_short)
         else:
             print("  No files modified.")
