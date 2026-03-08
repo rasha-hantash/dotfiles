@@ -23,13 +23,15 @@ Report sections without citations. Not all content needs citations — manually 
 
 For each footnote definition (`[^N]: session:<prefix>:<line>...`), validate:
 
-- **JSONL exists:** Scan `~/.claude/projects/` for a file matching `<prefix>*.jsonl`
+- **JSONL exists:** First check `brain-os/transcripts/<prefix>*.jsonl` (archive), then scan `~/.claude/projects/` for a file matching `<prefix>*.jsonl` (local)
 - **Line in range:** The cited line number is within the file's line count
 - **Character offsets valid** (if present): Offsets are within the entry's text length
 
 ```bash
 # Extract all footnote definitions matching: [^N]: session:<prefix>:<line>
-# For each, glob ~/.claude/projects/*/<prefix>*.jsonl
+# For each:
+#   1. Check brain-os/transcripts/<prefix>*.jsonl (archived transcripts)
+#   2. Glob ~/.claude/projects/*/<prefix>*.jsonl (local transcripts)
 # If found, check line count and optionally validate char offsets
 ```
 
