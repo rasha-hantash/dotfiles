@@ -3,12 +3,9 @@
 
 Captures git state, active tasks, team members, and previous session
 learnings, then injects them as systemMessage so Claude retains
-awareness after compaction. Includes session ID for learnings chaining.
+awareness after compaction.
 
-Post-compaction: Claude sees the ACTION REQUIRED message and launches
-the learnings-capturer agent (best quality — uses compact summary).
-Session end: capture-learnings.py runs as SessionEnd hook (fallback —
-catches final segment and no-compaction sessions).
+Learnings are captured automatically at session exit by brain-os-capture.py.
 """
 
 import glob
@@ -164,22 +161,13 @@ def main():
             + previous_learnings
         )
 
-    # Mandatory learnings capture — Claude MUST launch the agent post-compaction.
-    sections.append(
-        "## ACTION REQUIRED: Capture Session Learnings\n\n"
-        "**You MUST launch the learnings-capturer agent NOW.** This is a mandatory trigger.\n\n"
-        "Run: Use the Agent tool to spawn `~/.claude/agents/learnings-capturer.md` as a background agent.\n\n"
-        "- Review the compact summary above for non-obvious insights, gotchas, and patterns\n"
-        "- The agent will create a PR to brain-os with extracted learnings\n"
-        f"- Use session ID prefix `{session_short}` for filename namespacing\n"
-        "- Do NOT skip this step. Learnings that aren't captured are lost forever."
-    )
-
-    # Include session ID for post-compaction learnings capture
+    # Session context for post-compaction awareness
     sections.append(
         "## Session Context\n"
         f"**Session ID prefix:** `{session_short}`\n"
-        f"**Branch namespace:** `learnings/{session_short}/`"
+        "Learnings are captured automatically at session exit via brain-os-capture.py. "
+        "Surface non-obvious insights inline during the session — write directly to "
+        "brain-os convention docs with footnote citations when something is worth capturing."
     )
 
     context = "# Pre-Compaction Snapshot\n\n" + "\n\n".join(sections)
