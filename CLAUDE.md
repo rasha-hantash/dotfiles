@@ -13,6 +13,10 @@ System-level configs (shell, tmux, editor) managed from this repo and symlinked 
 - `zsh/zshenv` → `~/.zshenv`
 - `setup.sh` — installs symlinks
 
+## Bug fixing
+
+When I report a bug, don't start by trying to fix it. Instead, start by writing a test that reproduces the bug. Then, have subagents try to fix the bug and prove it with a passing test.
+
 ## Cove (Claude Code Session Manager)
 
 Cove manages Claude Code sessions inside tmux — creating windows with a 3-pane layout (Claude pane, sidebar navigator, mini terminal).
