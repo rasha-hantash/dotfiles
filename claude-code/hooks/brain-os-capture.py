@@ -222,10 +222,12 @@ Return a JSON array. Each learning is an object with:
 
 Drop anything below 0.5 confidence. If no meaningful learnings exist, return: []
 
+IMPORTANT: Return at most 5 learnings. Keep "verbatim_quote" under 100 characters. Keep "text" under 200 characters. This prevents output truncation.
+
 ```json
 [
   {{
-    "text": "ureq v3 is fully sync — no tokio runtime needed. Good choice for CLI tools that need simple HTTP without async complexity.",
+    "text": "ureq v3 is fully sync — no tokio runtime needed. Good choice for CLI tools.",
     "target_file": "rust/rust-conventions.md",
     "section": "## HTTP Clients",
     "citation_line": 247,
@@ -243,7 +245,7 @@ Drop anything below 0.5 confidence. If no meaningful learnings exist, return: []
 # ── Claude -p ──
 
 
-def run_claude_p(prompt: str, timeout: int = 120) -> str | None:
+def run_claude_p(prompt: str, timeout: int = 240) -> str | None:
     """Run claude -p and return stdout."""
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)
