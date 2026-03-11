@@ -14,6 +14,13 @@ import sys
 
 SENTINEL = os.path.expanduser("~/.claude/.pr-review-active")
 
+
+def is_inside_worktree() -> bool:
+    """Check if CWD is inside a .claude/worktrees/ directory."""
+    cwd = os.getcwd()
+    return "/.claude/worktrees/" in cwd
+
+
 # --- PR review context: allowed only when sentinel file exists ---
 PR_REVIEW_PATTERNS = [
     r"^git\s+add\b",
@@ -29,9 +36,9 @@ DENY_PATTERNS = [
     (r"git\s+checkout\s+-[bB]\b", "git checkout -b is blocked — use `gt create` instead"),
     (r"git\s+switch\s+(-c|-C|--create)\b", "git switch -c is blocked — use `gt create` instead"),
     (r"git\s+branch\s+(?!-[adrlv]|--all|--remotes|--list|--verbose|--show-current|--no-color|$)\S", "git branch <name> is blocked — use `gt create` instead"),
-    # Git branch switching — use `git worktree add` or EnterWorktree instead
-    (r"git\s+checkout\s+(?!-[bB]|--\s)(?!\.)\S", "git checkout <branch> is blocked — use `git worktree add` or EnterWorktree for isolation"),
-    (r"git\s+switch\s+(?!-c|-C|--create|-d|--detach|-)\S", "git switch <branch> is blocked — use `git worktree add` or EnterWorktree for isolation"),
+    # Git branch switching — blocked in main repo, allowed inside worktrees
+    (r"git\s+checkout\s+(?!-[bB]|--\s)(?!\.)\S", "git checkout <branch> is blocked — use `git worktree add` or EnterWorktree for isolation", True),
+    (r"git\s+switch\s+(?!-c|-C|--create|-d|--detach|-)\S", "git switch <branch> is blocked — use `git worktree add` or EnterWorktree for isolation", True),
     # Git commit — use `gt create` or `gt modify` instead
     (r"git\s+commit\b", "git commit is blocked — use `gt create` or `gt modify` instead"),
     # Git push — use `gt submit` instead
@@ -95,7 +102,11 @@ def main():
         sys.exit(0)
 
     # Check deny patterns first
-    for pattern, reason in DENY_PATTERNS:
+    for entry in DENY_PATTERNS:
+        pattern, reason = entry[0], entry[1]
+        skip_in_worktree = entry[2] if len(entry) > 2 else False
+        if skip_in_worktree and is_inside_worktree():
+            continue
         if re.search(pattern, command):
             result = {
                 "hookSpecificOutput": {
