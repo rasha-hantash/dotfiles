@@ -472,7 +472,7 @@ def run_claude_p(prompt: str, timeout: int = 240) -> str | None:
 
     try:
         result = subprocess.run(
-            ["claude", "-p", "--no-session-persistence", "--max-tokens", "16000"],
+            ["claude", "-p", "--no-session-persistence"],
             input=prompt,
             capture_output=True,
             text=True,
