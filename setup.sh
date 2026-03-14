@@ -122,6 +122,7 @@ link_file "$DOTFILES/claude-code/statusline-command.sh" "$HOME/.claude/statuslin
 link_file "$DOTFILES/claude-code/hooks" "$HOME/.claude/hooks" "Claude Code hooks"
 link_file "$DOTFILES/claude-code/agents" "$HOME/.claude/agents" "Claude Code agents"
 link_file "$DOTFILES/claude-code/skills" "$HOME/.claude/skills" "Claude Code skills"
+link_file "$DOTFILES/claude-code/assets" "$HOME/.claude/assets" "Claude Code assets"
 link_file "$DOTFILES/zsh/zshrc" "$HOME/.zshrc" "zsh config"
 link_file "$DOTFILES/zsh/zprofile" "$HOME/.zprofile" "zsh profile"
 link_file "$DOTFILES/zsh/zshenv" "$HOME/.zshenv" "zsh env"

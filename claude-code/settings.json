@@ -82,11 +82,7 @@
       "Edit(/Users/rashasaadeh/workspace/personal/**)",
       "Write(/Users/rashasaadeh/workspace/personal/**)"
     ],
-    "deny": [
-      "Bash(rm -rf /)",
-      "Bash(rm -rf /*)",
-      "Bash(chmod 777 *)"
-    ]
+    "deny": ["Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(chmod 777 *)"]
   },
   "hooks": {
     "Notification": [
@@ -95,7 +91,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
+            "command": "afplay \"/Users/rashasaadeh/.claude/assets/audio/beep.mp3\"",
             "timeout": 30,
             "async": true
           }
@@ -108,7 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
+            "command": "afplay \"/Users/rashasaadeh/.claude/assets/audio/beep.mp3\"",
             "timeout": 30,
             "async": true
           }
@@ -237,7 +233,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "afplay \"/Users/rashasaadeh/Downloads/airplane-seatbelt.aiff\"",
+            "command": "afplay \"/Users/rashasaadeh/.claude/assets/audio/beep.mp3\"",
             "timeout": 30,
             "async": true
           }
