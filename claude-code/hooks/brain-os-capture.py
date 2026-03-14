@@ -12,10 +12,12 @@ convention docs with inline footnote citations pointing to source transcripts.
 import argparse
 import fcntl
 import json
+import math
 import os
 import re
 import subprocess
 import sys
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
@@ -93,8 +95,41 @@ def extract_text(content) -> str:
     return ""
 
 
+def _extract_tool_summary(entry: dict) -> tuple[str, str] | None:
+    """Extract a condensed tool summary from a tool_use or tool_result entry.
+
+    Returns (tool_name, truncated_text) or None if not a tool entry.
+    """
+    entry_type = entry.get("type", "")
+    content = entry.get("message", {}).get("content", "")
+
+    if entry_type == "assistant" and isinstance(content, list):
+        # tool_use blocks live inside assistant messages
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "tool_use":
+                tool_name = block.get("name", "unknown_tool")
+                tool_input = json.dumps(block.get("input", {}))
+                return (tool_name, tool_input[:200])
+
+    if entry_type == "tool_result" or (
+        isinstance(content, list)
+        and any(
+            isinstance(b, dict) and b.get("type") == "tool_result"
+            for b in (content if isinstance(content, list) else [])
+        )
+    ):
+        # tool_result entries: content may be a string or list of text blocks
+        tool_name = entry.get("tool_name", "") or entry.get("name", "tool")
+        result_text = extract_text(content)
+        if not result_text and isinstance(content, str):
+            result_text = content
+        return (tool_name, result_text[:200])
+
+    return None
+
+
 def filter_transcript(jsonl_path: Path, max_entries: int = 500) -> list[dict]:
-    """Filter JSONL to meaningful user/assistant entries, preserving line numbers."""
+    """Filter JSONL to meaningful user/assistant/tool entries, preserving line numbers."""
     meaningful = []
     with open(jsonl_path) as f:
         for line_num, line in enumerate(f, 1):
@@ -103,7 +138,20 @@ def filter_transcript(jsonl_path: Path, max_entries: int = 500) -> list[dict]:
             except json.JSONDecodeError:
                 continue
 
-            if entry.get("type") not in KEEP_TYPES:
+            entry_type = entry.get("type", "")
+
+            # Check for tool_use / tool_result entries
+            tool_summary = _extract_tool_summary(entry)
+            if tool_summary:
+                tool_name, truncated = tool_summary
+                meaningful.append({
+                    "line_num": line_num,
+                    "role": "tool",
+                    "text": f"[{tool_name}] {truncated}",
+                })
+                continue
+
+            if entry_type not in KEEP_TYPES:
                 continue
 
             content = entry.get("message", {}).get("content", "")
@@ -114,7 +162,7 @@ def filter_transcript(jsonl_path: Path, max_entries: int = 500) -> list[dict]:
 
             meaningful.append({
                 "line_num": line_num,
-                "role": entry.get("type", "unknown"),
+                "role": entry_type or "unknown",
                 "text": text[:2000],
             })
 
@@ -164,19 +212,191 @@ def scan_brain_os_structure() -> str:
             except OSError:
                 continue
 
-            headings = []
-            for line in content.split("\n"):
+            lines = content.split("\n")
+            headings_with_snippets = []
+            for i, line in enumerate(lines):
                 if line.startswith("# "):
-                    headings.append(line)
+                    headings_with_snippets.append(line)
                 elif line.startswith("## "):
-                    headings.append(f"  {line}")
+                    headings_with_snippets.append(f"  {line}")
+                    # Capture first 2 non-empty body lines as snippets
+                    snippet_count = 0
+                    for j in range(i + 1, len(lines)):
+                        body_line = lines[j].strip()
+                        if not body_line:
+                            continue
+                        if body_line.startswith("## ") or body_line.startswith("# "):
+                            break
+                        headings_with_snippets.append(
+                            f"    > {body_line[:120]}"
+                        )
+                        snippet_count += 1
+                        if snippet_count >= 2:
+                            break
 
-            if headings:
+            if headings_with_snippets:
                 result.append(f"`{rel}`:")
-                for h in headings:
+                for h in headings_with_snippets:
                     result.append(f"  {h}")
 
     return "\n".join(result) if result else "(empty brain)"
+
+
+# ── TF-IDF Deduplication ──
+
+
+def _tokenize(text: str) -> list[str]:
+    """Tokenize text into lowercase words."""
+    return re.findall(r"\w+", text.lower())
+
+
+def _compute_tfidf(
+    documents: list[list[str]],
+) -> tuple[list[dict[str, float]], dict[str, float]]:
+    """Compute TF-IDF vectors for a list of tokenized documents.
+
+    Returns (tfidf_vectors, idf_scores).
+    """
+    n = len(documents)
+    if n == 0:
+        return [], {}
+
+    # Document frequency: how many documents contain each term
+    df: dict[str, int] = Counter()
+    for doc in documents:
+        unique_terms = set(doc)
+        for term in unique_terms:
+            df[term] += 1
+
+    # IDF: log(N / (1 + df))
+    idf = {term: math.log(n / (1 + freq)) for term, freq in df.items()}
+
+    # TF-IDF vectors
+    vectors = []
+    for doc in documents:
+        total = len(doc) if doc else 1
+        tf = Counter(doc)
+        vec = {term: (count / total) * idf.get(term, 0) for term, count in tf.items()}
+        vectors.append(vec)
+
+    return vectors, idf
+
+
+def _cosine_similarity(vec_a: dict[str, float], vec_b: dict[str, float]) -> float:
+    """Compute cosine similarity between two sparse TF-IDF vectors."""
+    # Only iterate over shared keys for dot product
+    shared_keys = set(vec_a.keys()) & set(vec_b.keys())
+    if not shared_keys:
+        return 0.0
+
+    dot = sum(vec_a[k] * vec_b[k] for k in shared_keys)
+    mag_a = math.sqrt(sum(v * v for v in vec_a.values()))
+    mag_b = math.sqrt(sum(v * v for v in vec_b.values()))
+
+    if mag_a == 0 or mag_b == 0:
+        return 0.0
+
+    return dot / (mag_a * mag_b)
+
+
+def _load_brain_os_sections() -> list[tuple[str, str, str]]:
+    """Load all brain-os convention doc sections.
+
+    Returns list of (file_rel_path, section_heading, section_body).
+    """
+    exclude = {".git", ".claude", "node_modules", "claude-learnings", "papers", "articles"}
+    sections = []
+
+    if not BRAIN_OS_PATH.is_dir():
+        return sections
+
+    for root, dirs, files in os.walk(BRAIN_OS_PATH):
+        dirs[:] = [d for d in dirs if d not in exclude]
+
+        for fname in sorted(files):
+            if not fname.endswith(".md") or fname == "README.md":
+                continue
+
+            filepath = Path(root) / fname
+            rel = str(filepath.relative_to(BRAIN_OS_PATH))
+
+            try:
+                content = filepath.read_text()
+            except OSError:
+                continue
+
+            # Split into sections on ## headings
+            current_heading = "(top)"
+            current_body: list[str] = []
+
+            for line in content.split("\n"):
+                if line.startswith("## "):
+                    # Save previous section
+                    if current_body:
+                        sections.append((rel, current_heading, "\n".join(current_body)))
+                    current_heading = line.strip()
+                    current_body = []
+                else:
+                    current_body.append(line)
+
+            # Save last section
+            if current_body:
+                sections.append((rel, current_heading, "\n".join(current_body)))
+
+    return sections
+
+
+def deduplicate_learnings(learnings: list[dict]) -> list[dict]:
+    """Reject learnings that are too similar to existing brain-os content.
+
+    Uses TF-IDF cosine similarity. Rejects if max similarity > 0.7.
+    """
+    existing_sections = _load_brain_os_sections()
+    if not existing_sections:
+        return learnings
+
+    # Tokenize existing sections
+    existing_tokens = [_tokenize(body) for _, _, body in existing_sections]
+
+    kept = []
+    for learning in learnings:
+        candidate_text = learning.get("text", "")
+        candidate_tokens = _tokenize(candidate_text)
+
+        if not candidate_tokens:
+            kept.append(learning)
+            continue
+
+        # Build TF-IDF over all docs + candidate
+        all_docs = existing_tokens + [candidate_tokens]
+        vectors, _ = _compute_tfidf(all_docs)
+
+        candidate_vec = vectors[-1]
+        max_sim = 0.0
+        max_section_file = ""
+        max_section_heading = ""
+
+        for i, (file_rel, heading, _) in enumerate(existing_sections):
+            sim = _cosine_similarity(vectors[i], candidate_vec)
+            if sim > max_sim:
+                max_sim = sim
+                max_section_file = file_rel
+                max_section_heading = heading
+
+        if max_sim > 0.7:
+            preview = candidate_text[:60]
+            log(
+                f"Rejected duplicate learning (sim={max_sim:.2f} vs "
+                f"{max_section_file} / {max_section_heading}): {preview}..."
+            )
+            print(
+                f"  Rejected (sim={max_sim:.2f}, exists in {max_section_file} "
+                f"/ {max_section_heading}): {preview}..."
+            )
+        else:
+            kept.append(learning)
+
+    return kept
 
 
 # ── Extraction Prompt ──
@@ -222,7 +442,7 @@ Return a JSON array. Each learning is an object with:
 
 Drop anything below 0.5 confidence. If no meaningful learnings exist, return: []
 
-IMPORTANT: Return at most 5 learnings. Keep "verbatim_quote" under 100 characters. Keep "text" under 200 characters. This prevents output truncation.
+IMPORTANT: Return at most 10 learnings. Keep "verbatim_quote" under 100 characters. Keep "text" under 200 characters. This prevents output truncation.
 
 ```json
 [
@@ -252,7 +472,7 @@ def run_claude_p(prompt: str, timeout: int = 240) -> str | None:
 
     try:
         result = subprocess.run(
-            ["claude", "-p", "--no-session-persistence"],
+            ["claude", "-p", "--no-session-persistence", "--max-tokens", "16000"],
             input=prompt,
             capture_output=True,
             text=True,
@@ -581,6 +801,11 @@ def main():
         learnings = [l for l in learnings if l.get("confidence", 0) >= 0.5]
         if not learnings:
             print("  No learnings passed confidence threshold.")
+            sys.exit(0)
+
+        learnings = deduplicate_learnings(learnings)
+        if not learnings:
+            print("  All learnings duplicate existing knowledge.")
             sys.exit(0)
 
         print(f"Found {len(learnings)} learning(s):")
