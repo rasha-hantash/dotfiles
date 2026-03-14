@@ -82,7 +82,11 @@
       "Edit(/Users/rashasaadeh/workspace/personal/**)",
       "Write(/Users/rashasaadeh/workspace/personal/**)"
     ],
-    "deny": ["Bash(rm -rf /)", "Bash(rm -rf /*)", "Bash(chmod 777 *)"]
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(chmod 777 *)"
+    ]
   },
   "hooks": {
     "Notification": [
@@ -286,6 +290,15 @@
     "ralph-loop@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true
   },
+  "extraKnownMarketplaces": {
+    "impeccable": {
+      "source": {
+        "source": "github",
+        "repo": "pbakaus/impeccable"
+      }
+    }
+  },
+  "voiceEnabled": false,
   "defaultMode": "acceptEdits",
   "mcpServers": {
     "technical-rag": {
@@ -298,15 +311,6 @@
         "-m",
         "technical_rag_mcp"
       ]
-    }
-  },
-  "effortLevel": "high",
-  "extraKnownMarketplaces": {
-    "impeccable": {
-      "source": {
-        "source": "github",
-        "repo": "pbakaus/impeccable"
-      }
     }
   }
 }
