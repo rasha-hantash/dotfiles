@@ -68,6 +68,23 @@ link_file() {
 
 printf "\n${C_BOLD}${C_PEACH}CCS${C_R} ${C_BOLD}— Claude Code Sessions${C_R}\n\n"
 
+# ── Install apps via Brewfile ──
+if command -v brew &>/dev/null; then
+    if [ -f "$DOTFILES/Brewfile" ]; then
+        info "Installing apps from Brewfile..."
+        if brew bundle --file="$DOTFILES/Brewfile" --no-lock 2>&1 | tail -5; then
+            ok "Brewfile installed"
+        else
+            warn "Some Brewfile items failed (non-fatal)"
+        fi
+        printf "\n"
+    fi
+else
+    warn "Homebrew not found — skipping Brewfile"
+    printf "    Install: ${C_OVERLAY}/bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"${C_R}\n"
+    printf "\n"
+fi
+
 # ── Check dependencies ──
 info "Checking dependencies..."
 
@@ -170,6 +187,34 @@ if ! echo "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
 fi
 
 printf "\n"
+
+# ── Raycast settings ──
+rayconfig=$(find "$DOTFILES/raycast" -name "*.rayconfig" -type f 2>/dev/null | head -1)
+if [ -n "$rayconfig" ]; then
+    if [ -d "/Applications/Raycast.app" ]; then
+        info "Raycast settings found"
+        printf "    Import manually: open Raycast → Settings → Advanced → Import\n"
+        printf "    ${C_OVERLAY}%s${C_R}\n" "$rayconfig"
+    else
+        warn "Raycast not installed — settings file available at $rayconfig"
+    fi
+    printf "\n"
+fi
+
+# ── Brew auto-sync (launchd) ──
+PLIST_SRC="$DOTFILES/scripts/com.dotfiles.brew-sync.plist"
+PLIST_DST="$HOME/Library/LaunchAgents/com.dotfiles.brew-sync.plist"
+if [ -f "$PLIST_SRC" ]; then
+    info "Setting up Brewfile auto-sync..."
+    mkdir -p "$HOME/Library/LaunchAgents"
+    mkdir -p "$HOME/.local/state/brew-sync"
+    link_file "$PLIST_SRC" "$PLIST_DST" "brew-sync launchd plist"
+    launchctl bootout gui/$(id -u) "$PLIST_DST" 2>/dev/null || true
+    launchctl bootstrap gui/$(id -u) "$PLIST_DST" 2>/dev/null && \
+        ok "brew-sync scheduled (daily at noon)" || \
+        warn "Failed to load brew-sync launchd job"
+    printf "\n"
+fi
 
 # ── Reload tmux if running ──
 if [ -n "${TMUX:-}" ]; then
