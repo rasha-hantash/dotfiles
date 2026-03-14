@@ -3,12 +3,16 @@
 
 Reads the user prompt, extracts keywords, searches brain-os markdown files
 for relevant content, and outputs top excerpts as plain text stdout.
+
+Logs structured JSON to ~/.local/state/brain-os/injections.log for
+visibility into what context is being injected per turn.
 """
 
 import json
 import os
 import re
 import sys
+from datetime import datetime, timezone
 
 BRAIN_OS_ROOT = os.path.expanduser(
     "~/workspace/personal/explorations/brain-os"
@@ -33,6 +37,8 @@ STOP_WORDS = {
 
 MAX_EXCERPT_CHARS = 800
 MAX_RESULTS = 5
+LOG_DIR = os.path.expanduser("~/.local/state/brain-os")
+LOG_FILE = os.path.join(LOG_DIR, "injections.log")
 
 
 def extract_keywords(prompt: str) -> list[str]:
@@ -99,6 +105,32 @@ def extract_relevant_section(content: str, keywords: list[str]) -> str | None:
     return best_section.strip()
 
 
+def log_injection(
+    keywords: list[str],
+    all_scored: list[tuple[int, str]],
+    selected: list[tuple[int, str, str]],
+    session_id: str,
+) -> None:
+    """Append a structured JSON log entry for this invocation."""
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "session": session_id,
+            "keywords": keywords[:20],  # cap to avoid huge entries
+            "scored_files": [
+                {"file": path, "score": score} for score, path in all_scored
+            ],
+            "injected": [
+                {"file": path, "score": score} for score, path, _ in selected
+            ],
+        }
+        with open(LOG_FILE, "a") as f:
+            f.write(json.dumps(entry, separators=(",", ":")) + "\n")
+    except OSError:
+        pass  # logging must never break the hook
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -109,12 +141,16 @@ def main():
     if not prompt or len(prompt) < 5:
         sys.exit(0)
 
+    session_id = data.get("session_id", "unknown")
+
     keywords = extract_keywords(prompt)
     if not keywords:
+        log_injection([], [], [], session_id)
         sys.exit(0)
 
     files = get_searchable_files()
-    results: list[tuple[int, str, str]] = []  # (score, filename, excerpt)
+    all_scored: list[tuple[int, str]] = []  # (score, rel_path) — everything that scored
+    results: list[tuple[int, str, str]] = []  # (score, rel_path, excerpt)
 
     for filepath in files:
         try:
@@ -135,19 +171,32 @@ def main():
         if total_score < 2:
             continue
 
+        rel_path = os.path.relpath(filepath, BRAIN_OS_ROOT)
+        all_scored.append((total_score, rel_path))
+
         excerpt = extract_relevant_section(content, keywords)
         if excerpt:
-            rel_path = os.path.relpath(filepath, BRAIN_OS_ROOT)
             results.append((total_score, rel_path, excerpt))
 
     if not results:
+        log_injection(keywords, all_scored, [], session_id)
         sys.exit(0)
 
     # Sort by score descending, take top N
     results.sort(key=lambda x: x[0], reverse=True)
+    all_scored.sort(key=lambda x: x[0], reverse=True)
     results = results[:MAX_RESULTS]
 
-    output_parts = ["## Relevant brain-os context (auto-injected)\n"]
+    log_injection(keywords, all_scored, results, session_id)
+
+    # Build summary line showing what was matched
+    matched_summary = ", ".join(
+        f"{os.path.basename(path)} ({score})" for score, path, _ in results
+    )
+    top_keywords = ", ".join(keywords[:8])
+    summary = f"> brain-os matched: {matched_summary} | keywords: {top_keywords}"
+
+    output_parts = [summary, "", "## Relevant brain-os context (auto-injected)\n"]
     for _score, rel_path, excerpt in results:
         output_parts.append(f"### From `{rel_path}`\n")
         output_parts.append(excerpt)
