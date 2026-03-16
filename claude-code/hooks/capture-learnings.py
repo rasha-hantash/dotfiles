@@ -32,7 +32,7 @@ def log(msg: str):
         pass
 
 
-def read_transcript(path: str, max_estimated_tokens: int = 150_000) -> str:
+def read_transcript(path: str, max_estimated_tokens: int = 500_000) -> str:
     """Read transcript JSONL, truncating if too large.
 
     If estimated tokens exceed max, extract compaction summaries
