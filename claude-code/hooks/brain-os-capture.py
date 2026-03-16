@@ -442,7 +442,7 @@ Return a JSON array. Each learning is an object with:
 
 Drop anything below 0.5 confidence. If no meaningful learnings exist, return: []
 
-IMPORTANT: Return at most 10 learnings. Keep "verbatim_quote" under 100 characters. Keep "text" under 200 characters. This prevents output truncation.
+IMPORTANT: Extract ALL meaningful learnings — do not cap the count. Keep "verbatim_quote" under 100 characters. Keep "text" under 200 characters. This prevents output truncation.
 
 ```json
 [
