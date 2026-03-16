@@ -82,6 +82,12 @@ Both checkpoints are mandatory. Never skip from plan approval to execution witho
 
 **Plan files need a descriptive title.** The first heading (`# ...`) should be a clear, descriptive statement of what the plan achieves (e.g., `# Reliable Learnings Capture — No Lost Knowledge`), not just a feature name. Someone scanning the repo's plan files should understand the intent at a glance.
 
+**Pre-build validation — validate before building:** For plans involving multiple integrations, external APIs, or unfamiliar system behavior, surface and validate all technical assumptions BEFORE presenting the plan. Read `brain-os/claude/pre-build-validation.md` for the full process. The short version: list every assumption as validated/unvalidated/blocker, probe the unvalidated ones empirically (run commands, check APIs, test flags), and fix wrong assumptions in the plan before asking to execute. Do not present a plan with unvalidated assumptions on the critical path.
+
+## Test-Driven Development
+
+When building new features with testable behavior, write the test first, then the implementation. Follow RED-GREEN-REFACTOR: write a failing test (RED), write the minimum code to make it pass (GREEN), then clean up (REFACTOR). This applies to unit tests, integration tests, and API contract tests. Skip TDD for: UI/styling work, exploratory prototypes, config changes, and one-off scripts.
+
 ## Git Workflow — Graphite (gt)
 
 Always use the Graphite MCP (`gt`) instead of raw `git` commands for creating branches and publishing code. Never use `git commit`, `git push`, or `git checkout -b` directly.
@@ -137,6 +143,10 @@ When the user asks to record a learning, write it **directly to the appropriate 
 2. Post-compaction (review compact summary for insights)
 3. Natural milestones (debugging session complete, complex issue resolved)
 4. Before suggesting `/clear`
+
+## Agent Teams
+
+When a task clearly involves 3+ independent work streams (e.g., "build a fullstack feature with frontend, backend, and tests"), proactively propose using Agent Teams in the framing step. Don't wait to be asked — suggest it so the user can confirm.
 
 ## PR Review Monitor
 
