@@ -14,8 +14,9 @@ import sys
 import time
 from datetime import datetime
 
-BRAIN_OS_ROOT = os.path.expanduser(
-    "~/workspace/personal/explorations/brain-os"
+BRAIN_OS_ROOT = os.environ.get(
+    "BRAIN_OS_PATH",
+    os.path.expanduser("~/workspace/personal/explorations/brain-os"),
 )
 LEARNINGS_DIR = os.path.join(BRAIN_OS_ROOT, "claude-learnings")
 LOCK_FILE = os.path.expanduser("~/.claude/capture-learnings.lock")

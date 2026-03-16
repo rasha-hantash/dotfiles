@@ -14,8 +14,9 @@ import re
 import sys
 from datetime import datetime, timezone
 
-BRAIN_OS_ROOT = os.path.expanduser(
-    "~/workspace/personal/explorations/brain-os"
+BRAIN_OS_ROOT = os.environ.get(
+    "BRAIN_OS_PATH",
+    os.path.expanduser("~/workspace/personal/explorations/brain-os"),
 )
 
 # Directories to search (relative to BRAIN_OS_ROOT)

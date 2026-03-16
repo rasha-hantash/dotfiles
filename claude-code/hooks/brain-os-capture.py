@@ -23,7 +23,10 @@ from pathlib import Path
 
 # ── Config ──
 
-BRAIN_OS_PATH = Path.home() / "workspace/personal/explorations/brain-os"
+BRAIN_OS_PATH = Path(os.environ.get(
+    "BRAIN_OS_PATH",
+    os.path.expanduser("~/workspace/personal/explorations/brain-os"),
+))
 TRANSCRIPTS_DIR = BRAIN_OS_PATH / "transcripts"
 CLAUDE_PROJECTS_DIR = Path.home() / ".claude/projects"
 LOCK_FILE = Path.home() / ".claude/brain-os-capture.lock"
