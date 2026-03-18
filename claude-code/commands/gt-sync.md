@@ -30,20 +30,37 @@ For each repo, run the following process **sequentially** (one repo at a time):
      e. Ask the user: "How would you prefer for me to resolve this?" with your proposed solution as the recommended option.
      f. After the user responds, execute their chosen resolution, then continue with the remaining repos.
 
-### 3. Summary
+### 3. Clean up stale worktree branches and orphaned worktrees
+
+After `gt sync` succeeds for a repo, clean up leftover branches and worktrees. For every branch (excluding main/trunk), apply this decision tree:
+
+1. **Has a worktree directory?** Check `git worktree list` and `.claude/worktrees/`.
+   - **Yes, with uncommitted changes** (`git -C <worktree_path> status --porcelain` is non-empty): Commit them (`git -C <worktree_path> add -A && git -C <worktree_path> commit -m "wip: uncommitted worktree changes"`), push, and create a PR via `gh pr create`. Note in summary.
+   - **Yes, clean**: Continue to step 2.
+   - **Orphaned directory** (exists on disk but not in `git worktree list`): Remove the directory.
+
+2. **Has commits ahead of main?** (`git -C <repo_path> log main..<branch> --oneline`)
+   - **Yes**: Leave it alone — it has real work.
+   - **No** (0 commits ahead): Delete the branch (`git update-ref -d refs/heads/<branch>`) and remove its worktree if one exists (`git worktree remove <path>`).
+
+3. **Prune**: Run `git -C <repo_path> worktree prune` to finalize cleanup.
+
+Track counts of: branches deleted, worktrees removed, and uncommitted work saved.
+
+### 4. Summary
 
 After all repos are processed, print a summary table:
 
 ```
 Repo            | Status
 ----------------|------------------
-brain-os        | Synced (2 branches deleted)
-cove            | Synced (clean)
+brain-os        | Synced (2 branches deleted, 1 worktree pruned)
+cove            | Synced (3 worktree branches cleaned)
 dork            | Skipped (dirty working tree)
 nugget          | Synced (1 branch deleted)
 ```
 
-Include counts of branches deleted if any were cleaned up during sync.
+Include counts of branches deleted, worktree branches cleaned, and worktrees pruned if any were cleaned up during sync.
 
 ## Important
 
