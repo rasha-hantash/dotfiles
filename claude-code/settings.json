@@ -322,7 +322,8 @@
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
     "ralph-loop@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true
+    "frontend-design@claude-plugins-official": true,
+    "impeccable@impeccable": true
   },
   "extraKnownMarketplaces": {
     "impeccable": {
