@@ -66,6 +66,34 @@ link_file() {
     ok "$name → $dst"
 }
 
+# Template helper — expands $HOME in a template file and writes to destination
+template_file() {
+    local src="$1" dst="$2" name="$3"
+
+    mkdir -p "$(dirname "$dst")"
+    if [ -e "$dst" ] && ! [ -L "$dst" ]; then
+        local existing
+        existing=$(sed "s|$HOME|\$HOME|g" "$dst")
+        local template
+        template=$(cat "$src")
+        if [ "$existing" = "$template" ]; then
+            ok "$name already up to date"
+            return
+        fi
+        warn "$name exists at $dst"
+        printf "    Overwrite with expanded template? [y/N] "
+        read -r confirm
+        if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+            warn "Skipped $name"
+            return
+        fi
+    fi
+    # Remove stale symlink if present (switching from symlink to generated file)
+    [ -L "$dst" ] && rm "$dst"
+    sed "s|\$HOME|$HOME|g" "$src" > "$dst"
+    ok "$name → $dst (from template)"
+}
+
 printf "\n${C_BOLD}${C_PEACH}CCS${C_R} ${C_BOLD}— Claude Code Sessions${C_R}\n\n"
 
 # ── Install apps via Brewfile ──
@@ -136,6 +164,7 @@ link_file "$DOTFILES/claude-code/settings.json" "$HOME/.claude/settings.json" "C
 link_file "$DOTFILES/claude-code/settings.local.json" "$HOME/.claude/settings.local.json" "Claude Code local settings"
 link_file "$DOTFILES/claude-code/CLAUDE.md" "$HOME/.claude/CLAUDE.md" "Claude Code global instructions"
 link_file "$DOTFILES/claude-code/statusline-command.sh" "$HOME/.claude/statusline-command.sh" "Claude Code statusline"
+template_file "$DOTFILES/claude-code/mcp.json.template" "$HOME/.claude/mcp.json" "Claude Code MCP servers"
 link_file "$DOTFILES/claude-code/hooks" "$HOME/.claude/hooks" "Claude Code hooks"
 link_file "$DOTFILES/claude-code/agents" "$HOME/.claude/agents" "Claude Code agents"
 link_file "$DOTFILES/claude-code/skills" "$HOME/.claude/skills" "Claude Code skills"
@@ -202,13 +231,13 @@ if [ -n "$rayconfig" ]; then
 fi
 
 # ── Brew auto-sync (launchd) ──
-PLIST_SRC="$DOTFILES/scripts/com.dotfiles.brew-sync.plist"
+PLIST_SRC="$DOTFILES/scripts/com.dotfiles.brew-sync.plist.template"
 PLIST_DST="$HOME/Library/LaunchAgents/com.dotfiles.brew-sync.plist"
 if [ -f "$PLIST_SRC" ]; then
     info "Setting up Brewfile auto-sync..."
     mkdir -p "$HOME/Library/LaunchAgents"
     mkdir -p "$HOME/.local/state/brew-sync"
-    link_file "$PLIST_SRC" "$PLIST_DST" "brew-sync launchd plist"
+    template_file "$PLIST_SRC" "$PLIST_DST" "brew-sync launchd plist"
     launchctl bootout gui/$(id -u) "$PLIST_DST" 2>/dev/null || true
     launchctl bootstrap gui/$(id -u) "$PLIST_DST" 2>/dev/null && \
         ok "brew-sync scheduled (daily at noon)" || \
