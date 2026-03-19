@@ -7,7 +7,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/rashasaadeh/workspace/personal/explorations/dotfiles/scripts/brew-sync.sh</string>
+        <string>$HOME/workspace/personal/explorations/dotfiles/scripts/brew-sync.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
@@ -17,9 +17,9 @@
         <integer>0</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Users/rashasaadeh/.local/state/brew-sync/launchd-stdout.log</string>
+    <string>$HOME/.local/state/brew-sync/launchd-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/rashasaadeh/.local/state/brew-sync/launchd-stderr.log</string>
+    <string>$HOME/.local/state/brew-sync/launchd-stderr.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>

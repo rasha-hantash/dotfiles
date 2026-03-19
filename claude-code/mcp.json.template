@@ -11,7 +11,7 @@
       "env": {}
     },
     "mcp-dap-server": {
-      "command": "/Users/rashasaadeh/workspace/personal/explorations/debugger/mcp-dap-server/bin/mcp-dap-server",
+      "command": "$HOME/workspace/personal/explorations/debugger/mcp-dap-server/bin/mcp-dap-server",
       "args": [],
       "env": {}
     },
@@ -20,15 +20,16 @@
       "args": ["tool", "run", "arxiv-mcp-server"],
       "env": {}
     },
-    "excalidraw": {
-      "command": "node",
+    "technical-rag": {
+      "command": "uv",
       "args": [
-        "/Users/rashasaadeh/workspace/personal/explorations/mcp_excalidraw/dist/index.js"
-      ],
-      "env": {
-        "EXPRESS_SERVER_URL": "http://localhost:3000",
-        "ENABLE_CANVAS_SYNC": "true"
-      }
+        "run",
+        "--directory",
+        "$HOME/workspace/personal/explorations/technical-rag/mcp-server",
+        "python",
+        "-m",
+        "technical_rag_mcp"
+      ]
     }
   }
 }

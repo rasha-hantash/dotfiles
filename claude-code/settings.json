@@ -96,10 +96,10 @@
       "mcp__graphite__run_gt_cmd",
       "mcp__graphite__learn_gt",
       "Read",
-      "Edit(/Users/rashasaadeh/workspace/personal/**)",
-      "Edit(/Users/rashasaadeh/.claude/**)",
-      "Write(/Users/rashasaadeh/workspace/personal/**)",
-      "Write(/Users/rashasaadeh/.claude/**)"
+      "Edit(~/workspace/personal/**)",
+      "Edit(~/.claude/**)",
+      "Write(~/workspace/personal/**)",
+      "Write(~/.claude/**)"
     ],
     "deny": [
       "Bash(rm -rf /)",
@@ -119,7 +119,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "afplay \"/Users/rashasaadeh/.claude/assets/audio/beep.mp3\"",
+            "command": "afplay \"$HOME/.claude/assets/audio/beep.mp3\"",
             "timeout": 30,
             "async": true
           }
@@ -132,7 +132,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "afplay \"/Users/rashasaadeh/.claude/assets/audio/beep.mp3\"",
+            "command": "afplay \"$HOME/.claude/assets/audio/beep.mp3\"",
             "timeout": 30,
             "async": true
           }
@@ -166,7 +166,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook post-tool",
+            "command": "$HOME/.cargo/bin/cove hook post-tool",
             "timeout": 5,
             "async": true
           }
@@ -221,7 +221,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook pre-tool",
+            "command": "$HOME/.cargo/bin/cove hook pre-tool",
             "timeout": 5,
             "async": true
           }
@@ -234,7 +234,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook session-end",
+            "command": "$HOME/.cargo/bin/cove hook session-end",
             "timeout": 5,
             "async": true
           }
@@ -271,7 +271,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "afplay \"/Users/rashasaadeh/.claude/assets/audio/beep.mp3\"",
+            "command": "afplay \"$HOME/.claude/assets/audio/beep.mp3\"",
             "timeout": 30,
             "async": true
           }
@@ -282,7 +282,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook stop",
+            "command": "$HOME/.cargo/bin/cove hook stop",
             "timeout": 5,
             "async": true
           }
@@ -297,7 +297,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/rashasaadeh/.cargo/bin/cove hook user-prompt",
+            "command": "$HOME/.cargo/bin/cove hook user-prompt",
             "timeout": 5,
             "async": true
           }
@@ -317,7 +317,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash /Users/rashasaadeh/.claude/statusline-command.sh"
+    "command": "bash $HOME/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
@@ -335,17 +335,5 @@
   },
   "voiceEnabled": false,
   "defaultMode": "acceptEdits",
-  "mcpServers": {
-    "technical-rag": {
-      "command": "uv",
-      "args": [
-        "run",
-        "--directory",
-        "/Users/rashasaadeh/workspace/personal/explorations/technical-rag/mcp-server",
-        "python",
-        "-m",
-        "technical_rag_mcp"
-      ]
-    }
-  }
+  "mcpServers": {}
 }
