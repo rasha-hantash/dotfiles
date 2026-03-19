@@ -49,7 +49,20 @@ System-level configs (shell, tmux, editor) live in `~/workspace/personal/dotfile
 
 ## Convention Docs (brain-os + technical-rag)
 
-brain-os (`~/workspace/personal/explorations/brain-os/`) is the knowledge base for reusable conventions, patterns, and learnings. When starting work in an unfamiliar area or one that might have documented conventions, scan the directory (`ls` + `grep`) to check for relevant docs before proceeding.
+brain-os (`~/workspace/personal/explorations/brain-os/`) is the knowledge base for reusable conventions, patterns, and learnings. A UserPromptSubmit hook auto-injects relevant docs based on keyword matching, but it may miss some. When working in an unfamiliar area, read `brain-os/index.md` — it's the canonical catalog of all convention docs with one-line descriptions. If the hook didn't inject something that looks relevant in the index, read the full doc directly.
+
+### Knowledge Source Priority
+
+When multiple knowledge sources have opinions on the same topic, follow this priority order:
+
+1. **Brain-os convention docs** (auto-injected + index above) — manually curated, highest authority
+2. **Installed public skills** — generic domain best practices, fill gaps where convention docs have no opinion
+3. **technical-rag MCP** — deep reference for specific concepts from indexed technical books
+4. **Brain-os claude learnings** (auto-injected when relevant) — raw session insights, unrefined, treat as supplementary
+
+Brain-os conventions override public skills. Public skills override generic model knowledge.
+
+### technical-rag
 
 For deeper technical questions (language patterns, library usage, architecture decisions), use the `technical-rag` MCP tools to search indexed technical books:
 
