@@ -1,3 +1,5 @@
+> **Archived 2026-03-17** — High-impact items done, remainder low-value
+
 # Dev Setup Optimization Plan
 
 Prioritized optimizations for the Claude Code + tmux + dotfiles workflow, identified from a full audit of CLAUDE.md, hooks, brain-os, and project configs.

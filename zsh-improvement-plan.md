@@ -1,3 +1,5 @@
+> **Archived 2026-03-17** — 100%, Phase 6 explicitly deferred
+
 # Zsh Configuration Improvement Plan
 
 Improvements to apply on top of the baseline zsh configs in `zsh/`. Each phase is independent and can be done incrementally.
