@@ -1,3 +1,6 @@
+<!-- ox:prime-check -->
+**BLOCKING**: Run `ox agent prime` NOW before ANY other action. Do NOT respond to the user first. Enables SageOx queries.
+
 # Dotfiles
 
 System-level configs (shell, tmux, editor) managed from this repo and symlinked to their real locations.
@@ -41,3 +44,5 @@ Cove was originally written in bash/zsh (`tmux/bin/ccs` and `tmux/bin/tmux-sideb
 
 - Shell scripting limitations: `brain-os/unix/shell-scripting-limitations.md`
 - Terminal/escape sequence reference: `brain-os/unix/terminals.md`
+
+<!-- ox:prime --> Run SageOx `ox agent prime` on session start, after compaction, or clear. (DO NOT REMOVE)
