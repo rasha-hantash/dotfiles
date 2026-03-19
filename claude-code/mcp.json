@@ -15,9 +15,16 @@
       "args": [],
       "env": {}
     },
+    "arxiv-mcp-server": {
+      "command": "uv",
+      "args": ["tool", "run", "arxiv-mcp-server"],
+      "env": {}
+    },
     "excalidraw": {
       "command": "node",
-      "args": ["/Users/rashasaadeh/workspace/personal/explorations/mcp_excalidraw/dist/index.js"],
+      "args": [
+        "/Users/rashasaadeh/workspace/personal/explorations/mcp_excalidraw/dist/index.js"
+      ],
       "env": {
         "EXPRESS_SERVER_URL": "http://localhost:3000",
         "ENABLE_CANVAS_SYNC": "true"
