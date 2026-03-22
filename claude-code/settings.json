@@ -220,7 +220,12 @@
       }
     ]
   },
-  "mcpServers": {},
+  "mcpServers": {
+    "xactions": {
+      "type": "http",
+      "url": "https://modelcontextprotocol.name/mcp/xactions"
+    }
+  },
   "permissions": {
     "allow": [
       "Read(~/.claude/CLAUDE.md)",
