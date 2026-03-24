@@ -9,6 +9,7 @@ All failures log and exit 0 (never crash session exit).
 import fcntl
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -237,12 +238,13 @@ Example:
 
 def _run_claude_p(prompt: str, timeout: int = 120) -> str | None:
     """Run claude -p and return stdout, or None on failure."""
+    claude_bin = shutil.which("claude") or "/opt/homebrew/bin/claude"
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)  # Avoid nested session detection
 
     try:
         result = subprocess.run(
-            ["claude", "-p", "--no-session-persistence"],
+            [claude_bin, "-p", "--no-session-persistence"],
             input=prompt,
             capture_output=True,
             text=True,
@@ -253,7 +255,7 @@ def _run_claude_p(prompt: str, timeout: int = 120) -> str | None:
         log(f"claude -p timed out after {timeout}s")
         return None
     except FileNotFoundError:
-        log("claude command not found")
+        log(f"claude command not found at {claude_bin}")
         return None
 
     if result.returncode != 0:
