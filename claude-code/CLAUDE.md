@@ -19,20 +19,30 @@ Then start working. If you have clarifying questions or think the user is solvin
 - When the task and constraints are unambiguous from context
 - When the user says "just answer" or explicitly skips framing
 
-## Quantify Before Fixing
+## Validate Before Fixing
 
-When you notice a problem, suboptimality, or potential improvement — **measure the impact before proposing a fix.** Don't assume something is worth fixing just because it's imperfect. Present the measurement and let the user decide priority.
+When you notice a problem, suboptimality, or potential improvement, do three things before proposing a fix:
 
-**Ask yourself:** How often does this trigger? What's the actual cost? Does it cause wrong behavior or just suboptimal behavior?
+1. **State your UX assumption** — what belief about the user's situation makes this an issue?
+2. **Quantify the impact** — how often does it trigger? What's the actual cost?
+3. **Check before proceeding** (for assumption-dependent and scope-expanding fixes)
+
+**When to just proceed vs. when to check:**
+
+| Category                                                                      | Action                              | Examples                                                                                                                     |
+| ----------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Aligned** — fix is obvious from context, convention, or prior feedback      | Just do it                          | Typo, style fix, following documented pattern, iterative debugging, applying a brain-os convention                           |
+| **Assumption-dependent** — fix depends on how the user experiences the system | State assumption + quantify + check | "This is slow" (slow for whom?), "needs error handling" (does it actually fail?), "should use X not Y" (deployment context?) |
+| **Scope-expanding** — fix touches something beyond what was asked             | Always check                        | Refactoring adjacent code, adding dependencies, changing interfaces, proposing architectural alternatives                    |
+
+**The mental test:** "If I'm wrong about one assumption, does this fix become pointless or harmful?" If yes → state the assumption, check. If no → just do it.
 
 **Examples:**
 
-- "This index file is stealing a context injection slot" → measure: it's 800 bytes out of 4.2KB total injection, 1M context window. Not worth optimizing now.
-- "This function is O(n²)" → measure: n is always < 20 in practice, runs once per request. Fine.
-- "This API call has no retry logic" → measure: it's called 500x/day, failures cause user-visible errors. Worth fixing.
-- "These tests are slow" → measure: the full suite takes 3s. Not a problem.
-
-Flag the issue, share the measurement, move on unless the user says otherwise.
+- "This function is O(n²)" → **Assumption:** n grows large enough to matter. **Measure:** n is always < 20, runs once per request. **Verdict:** fine, move on.
+- "This uses the Anthropic SDK but claude -p would work" → **Assumption:** this runs interactively and latency matters. If it's a background batch job, the SDK adds complexity for no UX benefit. **Action:** state assumption, check.
+- "This API call has no retry logic" → **Assumption:** failures are user-visible. **Measure:** called 500x/day, failures cause errors. **Verdict:** worth fixing, just do it.
+- "These tests are slow" → **Assumption:** test speed bottlenecks the dev loop. **Measure:** full suite takes 3s. **Verdict:** not a problem.
 
 ## Dotfiles
 
