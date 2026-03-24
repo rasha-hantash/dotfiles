@@ -1,0 +1,26 @@
+[general]
+knowledge_base_repo = "~/workspace/personal/explorations/brain-os"
+data_dir = "~/.local/share/dork/data"
+log_level = "info"
+
+# arXiv papers via RSS feeds
+[sources.arxiv]
+enabled = true
+categories = ["cs.CL", "cs.AI", "cs.LG", "stat.ML", "cs.IR"]
+
+# HuggingFace daily papers API
+[sources.huggingface]
+enabled = true
+
+# FreshRSS — all RSS feeds managed here (AI lab blogs, engineering blogs, etc.)
+# Add feeds via the FreshRSS web UI at http://localhost:8080
+# Use categories to control content_type: feeds in blog_categories → "blog", others → "paper"
+[sources.freshrss]
+enabled = true
+url = "http://localhost:8080"
+username = "admin"
+password = "freshrss"
+blog_categories = ["software-engineering"]
+
+# NOTE: AlphaXiv trending papers are handled by Claude via MCP
+# (alphaxiv MCP server at https://api.alphaxiv.org/mcp/v1)
