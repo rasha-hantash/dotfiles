@@ -2,12 +2,13 @@
 # vps-bootstrap.sh — personal layer on top of claude-vps-setup's bootstrap.
 #
 # Runs AFTER `claude-vps-setup`'s `/setup` has provisioned and bootstrapped
-# the VPS. Adds personal tooling (Rust, cove, neovim, ripgrep, fd, gh, gt)
+# the VPS. Adds personal tooling (Node, Rust, cove, neovim, ripgrep, fd, gh, gt)
 # and symlinks dotfiles into ~/.
 #
 # claude-vps-setup already handles: zsh, git, curl, tmux, build-essential, jq,
-# unzip, Tailscale, SSH hardening, Node, Claude Code, vps-clone/vps-sync-repo
-# helpers, and the `claude --effort max` alias.
+# unzip, Tailscale, SSH hardening, Claude Code (native binary), vps-clone /
+# vps-sync-repo helpers, and the `claude --effort max` alias. Node is NOT
+# installed by claude-vps-setup; this script adds it because gt needs it.
 #
 # Idempotent. Re-run any time to refresh dotfiles or upgrade tools.
 #
@@ -52,7 +53,23 @@ else
     skip "gh already installed"
 fi
 
-# 3. gt CLI (Graphite)
+# 3. Node via nvm (needed for gt; claude-vps-setup no longer installs Node)
+if ! command -v npm >/dev/null 2>&1; then
+    log "Installing Node via nvm"
+    if [ ! -d "$HOME/.nvm" ]; then
+        curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+    fi
+    export NVM_DIR="$HOME/.nvm"
+    # shellcheck disable=SC1091
+    . "$NVM_DIR/nvm.sh"
+    nvm install --lts
+    nvm alias default 'lts/*'
+    ok "node"
+else
+    skip "node already installed"
+fi
+
+# 4. gt CLI (Graphite)
 if ! command -v gt >/dev/null 2>&1; then
     log "Installing gt"
     npm install -g @withgraphite/graphite-cli@stable
@@ -61,7 +78,7 @@ else
     skip "gt already installed"
 fi
 
-# 4. Rust (needed for cove)
+# 5. Rust (needed for cove)
 if ! command -v cargo >/dev/null 2>&1; then
     log "Installing Rust"
     curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh
@@ -73,7 +90,7 @@ else
 fi
 . "$HOME/.cargo/env"
 
-# 5. cove
+# 6. cove
 if ! command -v cove >/dev/null 2>&1; then
     log "Installing cove"
     cargo install cove-cli
@@ -82,7 +99,7 @@ else
     skip "cove already installed (cargo install cove-cli to upgrade)"
 fi
 
-# 6. Dotfiles clone + symlink
+# 7. Dotfiles clone + symlink
 mkdir -p "$(dirname "$DOTFILES")"
 if [ ! -d "$DOTFILES" ]; then
     log "Cloning dotfiles -> $DOTFILES"
@@ -104,7 +121,7 @@ for f in CLAUDE.md settings.json keybindings.json statusline-command.sh; do
 done
 ok "dotfile symlinks"
 
-# 7. zsh as default shell
+# 8. zsh as default shell
 ZSH_PATH="$(command -v zsh)"
 if [ "$SHELL" != "$ZSH_PATH" ] && grep -q "^$ZSH_PATH$" /etc/shells 2>/dev/null; then
     log "Setting zsh as default shell"
