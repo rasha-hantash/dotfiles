@@ -33,6 +33,9 @@ source $ZSH/oh-my-zsh.sh
 # Claude Code
 export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
+# cove — default SSH alias for `cove vps` (resolves via ~/.ssh/config)
+export COVE_DEFAULT_VPS=claude-box
+
 alias python=python3
 alias pip=pip3
 
