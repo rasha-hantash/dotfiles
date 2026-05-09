@@ -111,6 +111,28 @@ Both checkpoints are mandatory. Never skip from plan approval to execution witho
 
 When building new features with testable behavior, write the test first, then the implementation. Follow RED-GREEN-REFACTOR: write a failing test (RED), write the minimum code to make it pass (GREEN), then clean up (REFACTOR). This applies to unit tests, integration tests, and API contract tests. Skip TDD for: UI/styling work, exploratory prototypes, config changes, and one-off scripts.
 
+## Data-model-first for nebulous projects
+
+When the user describes a project where the data shape isn't already fixed ("I want a system that...", new tools, medium-sized features), **proactively pause before writing any code** — even if they say "let's build it." Push back once with:
+
+- What's the smallest set of files/tables holding all the state?
+- What's source-of-truth, what's derived?
+- What's the read direction and write direction for each piece?
+
+The user has explicitly asked to be called out when they jump to code first on nebulous projects. Ask the data-model questions even when it feels slower. Three storage refactors cost more than one 30-min conversation.
+
+Skip for: bug fixes, small features fitting an existing model, clear specs, or when the user says "data model is already decided."
+
+## Decision log in plan files
+
+When working from a plan file and you make a load-bearing choice — schema, storage location, sync direction, sort order, file format — append to a `## Decisions` section in the plan with:
+
+- **Decision:** one sentence stating what was chosen.
+- **Rejected:** one bullet per rejected alternative (one sentence each).
+- **Why:** one bullet per reason this won (one sentence each, often cross-referencing which alternative each reason rules out).
+
+Future-you (and future-Claude) reads this when asking "why did we pick X". Without it, the argument has to be re-run from scratch.
+
 ## Git Workflow — Graphite (gt)
 
 Always use the Graphite MCP (`gt`) instead of raw `git` commands for creating branches and publishing code. Never use `git commit`, `git push`, or `git checkout -b` directly.
