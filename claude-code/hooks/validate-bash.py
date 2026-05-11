@@ -32,17 +32,20 @@ DENY_PATTERNS = [
     # Privilege escalation
     (r"\bsudo\b", "sudo commands are blocked"),
     (r"\bdd\b.*\bof=", "dd write operations are blocked"),
-    # Git branch creation — use `gt create` instead
-    (r"git\s+checkout\s+-[bB]\b", "git checkout -b is blocked — use `gt create` instead"),
-    (r"git\s+switch\s+(-c|-C|--create)\b", "git switch -c is blocked — use `gt create` instead"),
-    (r"git\s+branch\s+(?!-[adrlv]|--all|--remotes|--list|--verbose|--show-current|--no-color|$)\S", "git branch <name> is blocked — use `gt create` instead"),
+    # Git branch creation — blocked in main repo, allowed inside worktrees
+    # (where Graphite may not be set up, e.g. plain-git stacked-diff workflows).
+    (r"git\s+checkout\s+-[bB]\b", "git checkout -b is blocked — use `gt create` instead", True),
+    (r"git\s+switch\s+(-c|-C|--create)\b", "git switch -c is blocked — use `gt create` instead", True),
+    (r"git\s+branch\s+(?!-[adrlv]|--all|--remotes|--list|--verbose|--show-current|--no-color|$)\S", "git branch <name> is blocked — use `gt create` instead", True),
     # Git branch switching — blocked in main repo, allowed inside worktrees
     (r"git\s+checkout\s+(?!-[bB]|--\s)(?!\.)\S", "git checkout <branch> is blocked — use `git worktree add` or EnterWorktree for isolation", True),
     (r"git\s+switch\s+(?!-c|-C|--create|-d|--detach|-)\S", "git switch <branch> is blocked — use `git worktree add` or EnterWorktree for isolation", True),
-    # Git commit — use `gt create` or `gt modify` instead
-    (r"git\s+commit\b", "git commit is blocked — use `gt create` or `gt modify` instead"),
-    # Git push — use `gt submit` instead
-    (r"git\s+push\b", "git push is blocked — use `gt submit --no-interactive --publish` instead"),
+    # Git commit — blocked in main repo, allowed inside worktrees
+    # (where Graphite may not be set up, e.g. plain-git stacked-diff workflows).
+    (r"git\s+commit\b", "git commit is blocked — use `gt create` or `gt modify` instead", True),
+    # Git push — blocked in main repo, allowed inside worktrees. Force-push to
+    # main/master is still blocked unconditionally via the rules below.
+    (r"git\s+push\b", "git push is blocked — use `gt submit --no-interactive --publish` instead", True),
     # Destructive git operations
     (r"git\s+push\s+.*--force.*\b(main|master)\b", "force push to main/master is blocked"),
     (r"git\s+push\s+.*\b(main|master)\b.*--force", "force push to main/master is blocked"),
