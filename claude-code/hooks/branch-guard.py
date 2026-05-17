@@ -3,6 +3,11 @@
 
 Reads hook JSON from stdin, checks the current git branch, and denies
 edits if we're on a protected branch. Forces use of worktrees/feature branches.
+
+Carve-out: gitignored files are allowed even on main. They're personal/local
+state by design (e.g., `patterns/*.notes.md` alongside committed pattern
+templates) — they live only on main, never on a branch, so the guard's
+"work belongs on a branch" premise doesn't apply.
 """
 
 import json
@@ -29,6 +34,19 @@ def get_current_branch(file_path: str) -> str | None:
     return None
 
 
+def is_gitignored(file_path: str) -> bool:
+    """Return True if file_path matches a .gitignore pattern in its repo."""
+    try:
+        result = subprocess.run(
+            ["git", "check-ignore", "--quiet", "--", file_path],
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -45,6 +63,9 @@ def main():
         sys.exit(0)
 
     if branch in PROTECTED_BRANCHES:
+        if is_gitignored(file_path):
+            sys.exit(0)
+
         result = {
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
