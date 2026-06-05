@@ -11,11 +11,25 @@ templates) — they live only on main, never on a branch, so the guard's
 """
 
 import json
+import os.path
 import subprocess
 import sys
 
 
 PROTECTED_BRANCHES = {"main", "master"}
+
+
+def _git_cwd_for(file_path: str) -> str:
+    """Return a directory that `git -C` should use to resolve the file's repo.
+
+    Without this, subprocess.run defaults to the process CWD — which during a
+    Claude session is typically the project root, not the repo containing the
+    file being edited. Cross-repo edits (e.g., editing a file in a worktree
+    while CWD is another repo on main) were getting incorrectly blocked.
+    """
+    abs_path = os.path.abspath(file_path)
+    parent = os.path.dirname(abs_path)
+    return parent or "."
 
 
 def get_current_branch(file_path: str) -> str | None:
@@ -26,6 +40,7 @@ def get_current_branch(file_path: str) -> str | None:
             capture_output=True,
             text=True,
             timeout=5,
+            cwd=_git_cwd_for(file_path),
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -41,6 +56,7 @@ def is_gitignored(file_path: str) -> bool:
             ["git", "check-ignore", "--quiet", "--", file_path],
             capture_output=True,
             timeout=5,
+            cwd=_git_cwd_for(file_path),
         )
         return result.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
