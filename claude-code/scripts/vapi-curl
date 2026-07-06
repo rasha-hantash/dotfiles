@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# curl wrapper for api.vapi.ai — Cloudflare 403s any request without a
+# curl-like User-Agent (Python-urllib, no-UA requests all get challenged).
+#
+# Usage:
+#   vapi-curl /call?limit=10                     # path → prefixed with https://api.vapi.ai
+#   vapi-curl https://api.vapi.ai/assistant      # full URL also fine
+#   VAPI_ENV=staging vapi-curl /call             # pick staging key from org-configs .env
+#   VAPI_PRIVATE_KEY=... vapi-curl /call         # explicit key always wins
+# Extra args pass through to curl (e.g. -X PATCH -d '{...}').
+
+set -euo pipefail
+
+ENV_FILE="$HOME/workspace/basata-ai/organization-configs/scripts/vapi/.env"
+VAPI_ENV="${VAPI_ENV:-production}"
+
+KEY="${VAPI_PRIVATE_KEY:-}"
+if [ -z "$KEY" ] && [ -f "$ENV_FILE" ]; then
+  case "$VAPI_ENV" in
+    staging)    VAR=STAGING_VAPI_PRIVATE_KEY ;;
+    production) VAR=PRODUCTION_VAPI_PRIVATE_KEY ;;
+    *)          VAR=$(echo "$VAPI_ENV" | tr '[:lower:]' '[:upper:]')_VAPI_PRIVATE_KEY ;;
+  esac
+  KEY=$(grep "^${VAR}=" "$ENV_FILE" | head -1 | cut -d= -f2-)
+fi
+
+if [ -z "$KEY" ]; then
+  echo "error: no VAPI key — set VAPI_PRIVATE_KEY or populate $ENV_FILE" >&2
+  exit 1
+fi
+
+URL="${1:?usage: vapi-curl <path-or-url> [curl args...]}"
+shift
+case "$URL" in
+  http*) ;;
+  *) URL="https://api.vapi.ai${URL}" ;;
+esac
+
+exec curl -sS \
+  -H "Authorization: Bearer $KEY" \
+  -H "User-Agent: curl/8.7.1" \
+  "$URL" "$@"

@@ -114,6 +114,8 @@ When building new features with testable behavior, write the test first, then th
 
 Always use the Graphite MCP (`gt`) instead of raw `git` commands for creating branches and publishing code. Never use `git commit`, `git push`, or `git checkout -b` directly.
 
+**Exception — plain-git repos:** basata-ai repos (and any repo without Graphite) use plain `git`/`gh` — `gt` fails there. In those repos use the stacked-prs skill's plain-git mechanics (`gh pr create --base`, `git rebase --update-refs`); the worktree-first rule still applies. `validate-bash.py` allow-lists these roots.
+
 **Worktrees FIRST — before any edits (git repos only):** In any **git repository**, ALWAYS enter a worktree (`EnterWorktree` for main session, `isolation: "worktree"` for agents) BEFORE attempting any file edits. Do not try to edit first and wait for the branch guard to block you — proactively create the worktree as the very first step when you know edits are coming. Name worktrees descriptively based on the task (e.g., `reliable-learnings-capture`, `fix-sidebar-crash`). This applies to all repos, not just the current project. **If the current directory is NOT a git repository, skip worktree creation entirely and edit files directly.** Do not attempt `EnterWorktree` in non-git directories — it will fail. The `worktree-guard` hook enforces this automatically.
 
 **Core commands:**
