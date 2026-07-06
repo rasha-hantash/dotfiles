@@ -40,7 +40,33 @@ STOP_WORDS = {
     "use", "using", "used", "want", "need", "help", "just", "about",
     "into", "some", "than", "them", "then", "very", "also", "should",
     "could", "would", "there", "their", "been", "more", "other",
+    # harness/system-message vocabulary — never meaningful as topics
+    "task", "tasks", "tmp", "private", "output", "status", "summary",
+    "notification", "file", "files", "result", "results", "user", "users",
 }
+
+# Markers of harness-generated (non-user) turns — skip injection entirely
+SYSTEM_MESSAGE_MARKERS = (
+    "<task-notification>",
+    "<command-message>",
+    "<command-name>",
+    "<local-command-caveat>",
+    "[SYSTEM NOTIFICATION",
+    "<system-reminder>",
+)
+
+# Junk-token shapes: hex hashes, tool-use IDs, UUIDs, digit-heavy fragments
+HEX_TOKEN_RE = re.compile(r"^[0-9a-f]{8,}$")
+UUIDISH_RE = re.compile(r"^[0-9a-f]{4,}(-[0-9a-f]{2,}){2,}$")
+
+
+def is_junk_token(w: str) -> bool:
+    if w.startswith(("toolu_", "wf_", "msg_")):
+        return True
+    if HEX_TOKEN_RE.match(w) or UUIDISH_RE.match(w):
+        return True
+    digits = sum(c.isdigit() for c in w)
+    return len(w) > 4 and digits >= len(w) / 2
 
 # Manifest files -> domain mapping for CWD-based domain detection
 MANIFEST_MAP = {
@@ -75,6 +101,44 @@ MAX_EXCERPT_CHARS = 800
 MAX_RESULTS = 5
 LOG_DIR = os.path.expanduser("~/.local/state/brain-os")
 LOG_FILE = os.path.join(LOG_DIR, "injections.log")
+CACHE_FILE = os.path.join(LOG_DIR, "corpus-cache.json")
+
+
+def load_corpus() -> dict[str, str]:
+    """Load searchable file contents, cached on mtimes so we only re-read
+    the corpus when brain-os actually changes (this hook runs on every prompt)."""
+    manifest: dict[str, float] = {}
+    for f in get_searchable_files():
+        try:
+            manifest[f] = os.stat(f).st_mtime
+        except OSError:
+            continue
+
+    try:
+        with open(CACHE_FILE) as fh:
+            cache = json.load(fh)
+        if cache.get("manifest") == manifest:
+            return cache["contents"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError):
+        pass
+
+    contents: dict[str, str] = {}
+    for f in manifest:
+        try:
+            with open(f) as fh:
+                contents[f] = fh.read()
+        except OSError:
+            continue
+
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        tmp = CACHE_FILE + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump({"manifest": manifest, "contents": contents}, fh)
+        os.replace(tmp, CACHE_FILE)
+    except OSError:
+        pass
+    return contents
 
 
 def extract_keywords(prompt: str) -> list[str]:
@@ -83,7 +147,7 @@ def extract_keywords(prompt: str) -> list[str]:
     keywords = []
     seen = set()
     for w in words:
-        if len(w) >= 3 and w not in STOP_WORDS and w not in seen:
+        if len(w) >= 3 and w not in STOP_WORDS and w not in seen and not is_junk_token(w):
             keywords.append(w)
             seen.add(w)
     return keywords
@@ -266,6 +330,12 @@ def main():
     if not prompt or len(prompt) < 5:
         sys.exit(0)
 
+    # Harness-generated turns (task notifications, slash-command echoes) are not
+    # user prompts — their metadata keywords match junk docs. Skip entirely.
+    head = prompt.lstrip()[:300]
+    if any(marker in head for marker in SYSTEM_MESSAGE_MARKERS):
+        sys.exit(0)
+
     session_id = data.get("session_id", "unknown")
     cwd = data.get("cwd", os.getcwd())
 
@@ -277,15 +347,8 @@ def main():
     # Detect project domains from CWD
     domains = detect_domains(cwd)
 
-    # Load all files and their content
-    files = get_searchable_files()
-    files_contents: dict[str, str] = {}
-    for filepath in files:
-        try:
-            with open(filepath) as f:
-                files_contents[filepath] = f.read()
-        except OSError:
-            continue
+    # Load corpus (mtime-cached; only re-reads when brain-os changed)
+    files_contents = load_corpus()
 
     # Compute IDF weights across the corpus
     idf = compute_idf(files_contents, keywords)
