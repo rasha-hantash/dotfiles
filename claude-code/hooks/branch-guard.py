@@ -3,14 +3,10 @@
 
 Reads hook JSON from stdin, checks the current git branch, and denies
 edits if we're on a protected branch. Forces use of worktrees/feature branches.
-
-Carve-out: gitignored files are allowed even on main. They're personal/local
-state by design (e.g., `patterns/*.notes.md` alongside committed pattern
-templates) — they live only on main, never on a branch, so the guard's
-"work belongs on a branch" premise doesn't apply.
 """
 
 import json
+import os
 import subprocess
 import sys
 
@@ -18,14 +14,26 @@ import sys
 PROTECTED_BRANCHES = {"main", "master"}
 
 
+def repo_dir_for(file_path: str) -> str | None:
+    """Nearest existing directory containing file_path (the file may not exist yet)."""
+    d = os.path.dirname(os.path.abspath(os.path.expanduser(file_path)))
+    while d and d != "/" and not os.path.isdir(d):
+        d = os.path.dirname(d)
+    return d if d and os.path.isdir(d) else None
+
+
 def get_current_branch(file_path: str) -> str | None:
-    """Get the current branch for the repo containing file_path."""
+    """Get the current branch for the repo containing file_path (NOT the process CWD)."""
+    repo_dir = repo_dir_for(file_path)
+    if repo_dir is None:
+        return None
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             capture_output=True,
             text=True,
             timeout=5,
+            cwd=repo_dir,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -35,12 +43,17 @@ def get_current_branch(file_path: str) -> str | None:
 
 
 def is_gitignored(file_path: str) -> bool:
-    """Return True if file_path matches a .gitignore pattern in its repo."""
+    """True if file_path matches a .gitignore pattern in its repo — such files
+    live only on main by design and can't leak into a PR, so editing is safe."""
+    repo_dir = repo_dir_for(file_path)
+    if repo_dir is None:
+        return False
     try:
         result = subprocess.run(
             ["git", "check-ignore", "--quiet", "--", file_path],
             capture_output=True,
             timeout=5,
+            cwd=repo_dir,
         )
         return result.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
@@ -62,10 +75,7 @@ def main():
     if branch is None:
         sys.exit(0)
 
-    if branch in PROTECTED_BRANCHES:
-        if is_gitignored(file_path):
-            sys.exit(0)
-
+    if branch in PROTECTED_BRANCHES and not is_gitignored(file_path):
         result = {
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",

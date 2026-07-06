@@ -21,6 +21,19 @@ def is_inside_worktree() -> bool:
     return "/.claude/worktrees/" in cwd
 
 
+# Repos/orgs that do NOT use Graphite — plain git commit/push/checkout is the
+# sanctioned workflow there (gt fails on these repos). The Graphite-enforcement
+# denies below are skipped when CWD is inside any of these roots.
+PLAIN_GIT_ROOTS = [
+    os.path.expanduser("~/workspace/basata-ai"),
+]
+
+
+def is_plain_git_context() -> bool:
+    cwd = os.getcwd()
+    return any(cwd == root or cwd.startswith(root + "/") for root in PLAIN_GIT_ROOTS)
+
+
 # --- PR review context: allowed only when sentinel file exists ---
 PR_REVIEW_PATTERNS = [
     r"^git\s+add\b",
@@ -108,7 +121,7 @@ def main():
     for entry in DENY_PATTERNS:
         pattern, reason = entry[0], entry[1]
         skip_in_worktree = entry[2] if len(entry) > 2 else False
-        if skip_in_worktree and is_inside_worktree():
+        if skip_in_worktree and (is_inside_worktree() or is_plain_git_context()):
             continue
         if re.search(pattern, command):
             result = {

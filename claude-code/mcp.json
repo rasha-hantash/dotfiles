@@ -19,17 +19,6 @@
       "command": "uv",
       "args": ["tool", "run", "arxiv-mcp-server"],
       "env": {}
-    },
-    "technical-rag": {
-      "command": "uv",
-      "args": [
-        "run",
-        "--directory",
-        "/Users/rashasaadeh/workspace/personal/explorations/technical-rag/mcp-server",
-        "python",
-        "-m",
-        "technical_rag_mcp"
-      ]
     }
   }
 }

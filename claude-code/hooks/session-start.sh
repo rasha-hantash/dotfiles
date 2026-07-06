@@ -21,7 +21,8 @@ echo 'export NO_COLOR=1' >> "$CLAUDE_ENV_FILE"
 echo 'export LANG=en_US.UTF-8' >> "$CLAUDE_ENV_FILE"
 
 # Auto-add node_modules/.bin to PATH if it exists in the project
-CWD=$(echo '' | python3 -c "import sys,json; print(json.load(sys.stdin).get('cwd',''))" 2>/dev/null || true)
+# (hook JSON arrives on OUR stdin — piping echo '' here made CWD always empty)
+CWD=$(python3 -c "import sys,json; print(json.load(sys.stdin).get('cwd',''))" 2>/dev/null || true)
 if [ -n "$CWD" ] && [ -d "$CWD/node_modules/.bin" ]; then
   echo "export PATH=\"$CWD/node_modules/.bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 fi
