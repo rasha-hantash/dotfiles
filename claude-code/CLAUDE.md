@@ -37,12 +37,22 @@ When you notice a problem, suboptimality, or potential improvement, do three thi
 
 **The mental test:** "If I'm wrong about one assumption, does this fix become pointless or harmful?" If yes → state the assumption, check. If no → just do it.
 
+**Collateral changes — explain, don't ask.** Small collateral improvements while doing requested work (rewriting a loop, deleting a stale line, tidying adjacent code) are fine without stopping to ask — but every one MUST be called out in the response with a one-line what + why. Never leave an unexplained diff; Rasha reviews by asking "why did we change this?" and the answer should already be in the message. Two things still require asking first: starting/stopping services or databases, and anything scope-expanding per the table above. When discussing a file, always give its directory/path.
+
 **Examples:**
 
 - "This function is O(n²)" → **Assumption:** n grows large enough to matter. **Measure:** n is always < 20, runs once per request. **Verdict:** fine, move on.
 - "This uses the Anthropic SDK but claude -p would work" → **Assumption:** this runs interactively and latency matters. If it's a background batch job, the SDK adds complexity for no UX benefit. **Action:** state assumption, check.
 - "This API call has no retry logic" → **Assumption:** failures are user-visible. **Measure:** called 500x/day, failures cause errors. **Verdict:** worth fixing, just do it.
 - "These tests are slow" → **Assumption:** test speed bottlenecks the dev loop. **Measure:** full suite takes 3s. **Verdict:** not a problem.
+
+## Verify Before Asserting
+
+Any factual claim about system state — what a branch contains, what an API returns, which config is deployed where, whether a file/field/behavior exists — must be verified with a tool call BEFORE it is stated, not offered as an assumption for Rasha to check. If verification requires a permission (production reads, credentials, an external service), proactively ask for that specific permission instead of shipping an unverified claim. On the rare occasion something can't be verified, label it explicitly ("unverified — would need X to confirm"). Rasha should never have to reply "validate that" — proactive verification is the default.
+
+## Ritual Promotion — second-occurrence rule
+
+The moment the same multi-step ritual, fix, or workaround is performed for the SECOND time (within a session, or recognized from memory/brain-os as recurring), immediately propose promoting it to a skill or script: one or two lines — proposed name, what it automates, where it lives. Create it only after Rasha approves. Never let a ritual reach a third repetition unproposed.
 
 ## Dotfiles
 
@@ -162,4 +172,4 @@ When a task clearly involves 3+ independent work streams (e.g., "build a fullsta
 
 ## PR Review Monitor
 
-**Every time** a PR is created or updated via `gt submit`, launch the `pr-monitor` agent (see `~/.claude/agents/pr-monitor.md`) as a background sub-agent. This is automatic — don't wait to be asked.
+**Every time** a PR is created or updated via `gt submit` **in a repo with automated review (Mesa)**, launch the `pr-monitor` agent (see `~/.claude/agents/pr-monitor.md`) as a background sub-agent. This is automatic — don't wait to be asked. Skip repos with no reviewer configured (e.g. personal dotfiles) — the agent definition includes the preflight check.
