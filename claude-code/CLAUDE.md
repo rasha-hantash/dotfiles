@@ -46,7 +46,7 @@ When you notice a problem, suboptimality, or potential improvement, do three thi
 
 ## Dotfiles
 
-System-level configs (shell, tmux, editor) live in `~/workspace/personal/dotfiles/` and are symlinked to their real locations. When modifying any dotfile (e.g., `~/.tmux.conf`, scripts in `~/.local/bin/`), edit the source in the dotfiles repo and the symlink propagates the change.
+System-level configs (shell, tmux, editor) live in `~/workspace/personal/explorations/dotfiles/` and are symlinked to their real locations. When modifying any dotfile (e.g., `~/.tmux.conf`, scripts in `~/.local/bin/`), edit the source in the dotfiles repo and the symlink propagates the change.
 
 - **tmux config**: `dotfiles/tmux/tmux.conf` → `~/.tmux.conf`
 - **Claude Code config**: `dotfiles/claude-code/` → `~/.claude/` (settings.json, CLAUDE.md, hooks/, commands/, agents/, skills/)
@@ -84,54 +84,21 @@ Requires the FastAPI backend running (`cd ~/workspace/personal/explorations/tech
 
 ## Project Plans
 
-At session start, look for a plan file in the project root — any `.md` file with "plan" in the name (e.g., `PLAN.md`, `context-view-plan.md`, `debug-plan.md`). If one exists:
+Plans live in **Linear documents**, not repo files.
 
-- **Read it first** before doing any work. The Progress section is the source of truth for what's done and what's next.
-- **After completing a documented step:** Update the Progress section — check off the item (`- [x]`), add the date. If blocked or failed, note why inline.
-- **On failure or deviation:** Add a note under the relevant step explaining what went wrong and the revised approach.
+**When a plan is ready (plan mode):** The plan presented for approval MUST state its Linear destination in a header line — e.g. `Plan doc → ENG-726`, `Plan doc → project "[CS] Referral Management"`, or `Plan doc → RAS team`. Approving the plan approves the destination; Rasha corrects it via plan feedback if wrong. Destination rules: a ticket referenced in the conversation → that issue; otherwise a clearly-mapped project → that project; ambiguous or personal work → the private **RAS** team (never guess a public team). After approval, write the plan to Linear automatically — do not ask whether to save it. The document title is a descriptive statement of what the plan achieves (e.g., "Reliable Learnings Capture — No Lost Knowledge"), not just a feature name. Include a `## Progress` section with all steps as unchecked items (`- [ ]`).
 
-This is automatic — don't wait to be asked. After `/clear`, the file on disk still has progress, so re-reading it on the next session recovers state.
+**NEVER ask to execute, and NEVER start executing on your own.** Plan approval means the plan is approved — nothing more. After saving the plan to Linear, share the doc link and end the turn. Execution begins only when Rasha explicitly says so ("go", "execute the plan", "start"). Do not ask "want me to start executing?" — she will say when.
 
-**Creating plan files — two-checkpoint flow:**
+**During execution (once told to):** Update the Linear doc's Progress section as steps complete — check off items (`- [x]`), add the date. On failure or deviation, add a note under the relevant step explaining what went wrong and the revised approach. The plan is a living document, not a snapshot. This is automatic — don't wait to be asked.
 
-When a plan is ready (before calling `ExitPlanMode`), do NOT jump straight to requesting approval. Instead:
-
-1. **Ask to save:** "Want me to save this plan to a file?" If yes, write it to `<descriptive-name>-plan.md` in the project root (e.g., `auth-migration-plan.md`, `debug-panel-plan.md`). The file name should be a short kebab-case summary of the plan's purpose. Include a `## Progress` section with all steps as unchecked items (`- [ ]`).
-2. **Ask to execute:** "Want me to start executing?" The user may say no — they might want to review the file, share it, or come back later. Respect that.
-
-Both checkpoints are mandatory. Never skip from plan approval to execution without offering to persist the plan first.
-
-**Plan files are committed to the repo.** Every plan file must be committed and pushed as part of the PR. Plan files serve as a system of record — they document what was planned, what was executed, and what was deferred. They stay in the repo permanently (don't delete after completion). Update progress and notes in the plan file as work proceeds — the plan is a living document, not a snapshot.
-
-**Plan files need a descriptive title.** The first heading (`# ...`) should be a clear, descriptive statement of what the plan achieves (e.g., `# Reliable Learnings Capture — No Lost Knowledge`), not just a feature name. Someone scanning the repo's plan files should understand the intent at a glance.
+**At session start / when resuming:** If the work maps to a Linear issue or project, check its attached documents for a plan doc — its Progress section is the source of truth for what's done and what's next. (Legacy: some repos still contain committed `*-plan.md` files from the old convention; if one exists in the project root, read it too.)
 
 **Pre-build validation — validate before building:** For plans involving multiple integrations, external APIs, or unfamiliar system behavior, surface and validate all technical assumptions BEFORE presenting the plan. Read `brain-os/claude/pre-build-validation.md` for the full process. The short version: list every assumption as validated/unvalidated/blocker, probe the unvalidated ones empirically (run commands, check APIs, test flags), and fix wrong assumptions in the plan before asking to execute. Do not present a plan with unvalidated assumptions on the critical path.
 
 ## Test-Driven Development
 
 When building new features with testable behavior, write the test first, then the implementation. Follow RED-GREEN-REFACTOR: write a failing test (RED), write the minimum code to make it pass (GREEN), then clean up (REFACTOR). This applies to unit tests, integration tests, and API contract tests. Skip TDD for: UI/styling work, exploratory prototypes, config changes, and one-off scripts.
-
-## Data-model-first for nebulous projects
-
-When the user describes a project where the data shape isn't already fixed ("I want a system that...", new tools, medium-sized features), **proactively pause before writing any code** — even if they say "let's build it." Push back once with:
-
-- What's the smallest set of files/tables holding all the state?
-- What's source-of-truth, what's derived?
-- What's the read direction and write direction for each piece?
-
-The user has explicitly asked to be called out when they jump to code first on nebulous projects. Ask the data-model questions even when it feels slower. Three storage refactors cost more than one 30-min conversation.
-
-Skip for: bug fixes, small features fitting an existing model, clear specs, or when the user says "data model is already decided."
-
-## Decision log in plan files
-
-When working from a plan file and you make a load-bearing choice — schema, storage location, sync direction, sort order, file format — append to a `## Decisions` section in the plan with:
-
-- **Decision:** one sentence stating what was chosen.
-- **Rejected:** one bullet per rejected alternative (one sentence each).
-- **Why:** one bullet per reason this won (one sentence each, often cross-referencing which alternative each reason rules out).
-
-Future-you (and future-Claude) reads this when asking "why did we pick X". Without it, the argument has to be re-run from scratch.
 
 ## Git Workflow — Graphite (gt)
 
