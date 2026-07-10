@@ -1,6 +1,6 @@
 ---
 name: local-voice-up
-description: Bring up the Basata local voice-agent E2E stack (docker bundle + signing proxy + ngrok + VAPI squad replication) so a real phone call reaches the local backend. Use when testing voice-agent changes locally, when the user says "local E2E", "test this with a call", or mentions ngrok/signing-proxy/replicate-vapi-squad.
+description: Bring up the Basata local voice-agent E2E stack (docker bundle + signing proxy + ngrok + VAPI squad replication) so a real phone call reaches the local backend, and optionally run auto-graded Hamming tests (agents-tests-runner) against the local squad. Use when testing voice-agent changes locally, when the user says "local E2E", "test this with a call", "run hamming locally", or mentions ngrok/signing-proxy/replicate-vapi-squad/agents-tests-runner.
 ---
 
 # Local Voice E2E Bring-Up (Basata)
@@ -42,6 +42,25 @@ With the **reserved** ngrok domain the URL never changes, so you run this **once
 ⚠️ **Worktree trap:** replicate resolves org-configs by walking up from ITS OWN location → it reads the MAIN checkout, never a worktree. If the config under test lives in a worktree, verify what the script will read before running (or point ORG_CONFIGS_DIR at the worktree).
 
 Verify: place a real call, exercise happy path + one refusal path, record the VAPI call IDs in the ticket.
+
+## Phase 3 — auto-graded Hamming run (optional: `tests.yml` guardrails against local code)
+
+Run `agents-tests-runner/run.sh` so **Hamming drives + grades** an agent's `tests.yml` against the local squad — instead of clicking the Hamming UI or dialing by hand. Full runbook + concrete CS values: RAS doc **"SOP: Local Hamming Test Run"**. Invariants:
+
+- **Dedicated Hamming group only** — never a shared `basata-<env>` group. The runner resolves agents _by name within a group_, so an import into a shared group hijacks that env's real agent. Personal VAPI key = hard org boundary (can't touch dev0/staging).
+- **Agent name is exact:** `<INITIALS> - <agent-dir>` (Grace = `CS - smart-voicemail`; dir is `smart-voicemail`, **not** `appt-mgmt`). Imported agents are Auto-Sync (`isEditable:false`) → you can't rename in Hamming; rename the **VAPI squad** (`PATCH /squad` with the `members` array sent back, or 400) and Auto-Sync pulls it. The group **list** endpoint lags the single-agent GET a cache cycle — verify the list before running.
+- **Every replicate mints a NEW squad** → the Hamming agent's `externalAgentId` goes stale + the name reverts → re-import + re-rename. High-touch for rapid iteration; for that just **dial the number**.
+- Renaming the squad to `CS - smart-voicemail` **breaks THIS script's teardown** (it matches the `"local E2E"` substring) — rename back before re-replicating, or patch the teardown matcher.
+- `agents-tests-runner/configs/.env`: `HAMMING_API_KEY`, `HAMMING_LOCAL_GROUP_ID`, `VAPI_PRIVATE_KEY` (personal), `AZURE_BLOB_CONNECTION_STRING` = a **well-formed** dummy (`DefaultEndpointsProtocol=https;AccountName=placeholder;AccountKey=cGxhY2Vob2xkZXI=;EndpointSuffix=core.windows.net` — the blob client is built unconditionally at startup, so a bare placeholder crashes; fake-but-valid is fine, inbound never downloads), `BASATA_WEBHOOK_SECRET` blank. `configs/local/app.yml` → `hamming.base_url: https://app.hamming.ai/api/rest` (public; deployed envs use an internal Tailscale host).
+- Personas: canonical `tests.yml` uses staging **"April Test"** (absent in the local Ellkay sandbox) → make a **throwaway org-configs branch** swapping to the seeded sandbox patient, and **push it** (`-oc` shallow-clones the _remote_ ref). Trim `tests.yml` to bound billable calls (each case = one VAPI+Hamming call; watch the VAPI balance).
+
+```bash
+cd ~/workspace/basata-ai/agents-tests-runner        # (or a worktree)
+uv venv .venv --python 3.13 && uv pip install -r requirements.txt
+./run.sh --env local -oc <throwaway-branch> --org-id <uuid> --agent smart-voicemail --https --sync
+```
+
+The runner creates the test cases + guardrails in Hamming via API, places inbound calls, and prints per-guardrail PASS/FAIL. Inbound needs no DB/blob/webhook secret; those are outbound-only.
 
 ## Teardown
 
