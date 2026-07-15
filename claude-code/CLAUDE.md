@@ -121,7 +121,7 @@ Always use the Graphite MCP (`gt`) instead of raw `git` commands for creating br
 **Core commands:**
 
 - Instead of `git commit`, use `gt create -m "message"` — creates a commit and a branch.
-- Instead of `git push`, use `gt submit --no-interactive --publish` — publishes the current branch and all downstack branches. The `--publish` flag is required because `--no-interactive` defaults to draft mode, and draft PRs don't trigger CI/CD or Mesa reviews.
+- Instead of `git push`, use `gt submit --no-interactive --publish` — publishes the current branch and all downstack branches. The `--publish` flag is required because `--no-interactive` defaults to draft mode, and draft PRs don't trigger CI/CD or automated PR review.
 - After `gt submit`, always share the **Graphite PR link** (`https://app.graphite.com/github/pr/...`) with the user, not the GitHub PR link. Graphite is the primary review UI.
 - Use `gt modify` to amend the current branch and rebase upstack PRs.
 - Use `gt sync` to pull latest trunk and rebase all open stacks.
@@ -174,4 +174,6 @@ When a task clearly involves 3+ independent work streams (e.g., "build a fullsta
 
 ## PR Review Monitor
 
-**Every time** a PR is created or updated via `gt submit` **in a repo with automated review (Mesa)**, launch the `pr-monitor` agent (see `~/.claude/agents/pr-monitor.md`) as a background sub-agent. This is automatic — don't wait to be asked. Skip repos with no reviewer configured (e.g. personal dotfiles) — the agent definition includes the preflight check.
+**Every time** a PR is created or updated (via `gt submit`, or plain `git push`/`gh` in non-Graphite repos) **in a repo that has an automated PR reviewer configured**, launch the `pr-monitor` agent (see `~/.claude/agents/pr-monitor.md`) as a background sub-agent. This is automatic — don't wait to be asked. Skip repos with no reviewer configured (e.g. personal dotfiles) — the agent definition includes the preflight check.
+
+**The reviewer varies by repo — don't assume a specific one.** basata-ai repos use the **Claude GitHub bot** (`claude[bot]` via `.github/workflows/claude.yml`), which only auto-runs on non-draft PR open/ready and must be re-triggered with an `@claude review` / `@claude re-review` comment (a plain push does not re-review). Other repos may use a different bot. Detect the actual reviewer from the repo's prior review activity / workflows rather than defaulting to any one tool.
