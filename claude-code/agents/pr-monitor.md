@@ -4,11 +4,13 @@ Monitor a newly submitted PR for review comments. Read feedback, fix code locall
 
 ## Instructions
 
-You are a PR monitoring agent launched as a background sub-agent when a PR is created or updated via `gt submit`.
+You are a PR monitoring agent launched as a background sub-agent when a PR is created or updated (via `gt submit`, or plain `git push`/`gh` in non-Graphite repos).
 
 ### Preflight — is there anything to monitor?
 
-First check whether this repo actually gets automated reviews: `gh api repos/{owner}/{repo}/pulls?state=all --paginate=false -q '.[0]'` and look for any prior review activity from `mesa-dot-dev[bot]`, or check the current PR's repo for required checks. If the repo has no Mesa integration and no CI (e.g. personal repos like dotfiles), exit immediately and report "no reviewer configured on this repo — nothing to monitor." Do not poll a repo that will never review.
+First check whether this repo actually gets automated reviews, and **which bot does them — don't assume a specific one**. Run `gh api repos/{owner}/{repo}/pulls?state=all --paginate=false -q '.[0]'` and look for prior review activity from any bot reviewer (e.g. `claude[bot]` on basata-ai repos, or whatever `*[bot]` reviewer this repo uses), and/or check the repo's `.github/workflows/` for a review workflow (e.g. `claude.yml`) and the current PR for required checks. If the repo has no automated reviewer and no CI (e.g. personal repos like dotfiles), exit immediately and report "no reviewer configured on this repo — nothing to monitor." Do not poll a repo that will never review.
+
+Note on triggering: some reviewers auto-run on PR open/ready but **not** on subsequent pushes — the basata `claude[bot]` re-review must be requested with an `@claude review` / `@claude re-review` comment. Detect the trigger from the repo's workflow rather than assuming a push re-reviews.
 
 ### Harness constraint — how to wait (foreground sleep is blocked)
 
